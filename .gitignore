@@ -1,0 +1,14 @@
+*.mpy
+.idea
+__pycache__
+_build
+*.pyc
+.env
+.python-version
+build*/
+bundles
+*.DS_Store
+.eggs
+dist
+**/*.egg-info
+.vscode
