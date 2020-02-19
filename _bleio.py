@@ -31,10 +31,16 @@
 """
 
 import asyncio
+import os
 import struct
 import time
 
-import bleak
+# Don't import bleak is we're running in the CI. We could mock it out but that
+# would require mocking in all reverse dependencies.
+if "GITHUB_ACTION" not in os.environ:
+    import bleak
+else:
+    bleak = None  # pylint: disable=invalid-name
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
