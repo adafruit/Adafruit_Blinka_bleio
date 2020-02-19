@@ -20,10 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
-`adafruit_blinka_bleio`
+`_bleio`
 ================================================================================
 
-`_bleio` for Blinka based on `bleak`
+`_bleio` for Blinka based on ``bleak``
 
 
 * Author(s): Scott Shawcroft
@@ -34,8 +34,6 @@ import asyncio
 import struct
 import time
 
-from adafruit_ble import advertising
-
 import bleak
 
 __version__ = "0.0.0-auto.0"
@@ -43,13 +41,7 @@ __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 
 
 class Address:
-    """Create a new Address object encapsulating the address value.
-       The value itself can be one of:
-
-       :param buf address: The address value to encapsulate. A buffer object (bytearray, bytes)
-           of 6 bytes.
-       :param int address_type: one of the integer values: `PUBLIC`, `RANDOM_STATIC`,
-           `RANDOM_PRIVATE_RESOLVABLE`, or `RANDOM_PRIVATE_NON_RESOLVABLE`."""
+    """Create a new Address object encapsulating the address value."""
 
     # pylint: disable=too-few-public-methods
     def __init__(self, address):
@@ -76,11 +68,41 @@ class ScanEntry:
         # print(self._data_dict)
         self.address = Address(bleak_device.address)
 
-        self.advertisement_bytes = advertising.encode_data(self._data_dict)
+        self.advertisement_bytes = self._encode_data(self._data_dict)
         # print(bleak_device.address, bleak_device.name, bleak_device.metadata)
 
         self.connectable = bool(bleak_device.metadata["uuids"])
         self.scan_response = False
+
+    @staticmethod
+    def _compute_length(data_dict, *, key_encoding="B"):
+        """Computes the length of the encoded data dictionary."""
+        value_size = 0
+        for value in data_dict.values():
+            if isinstance(value, list):
+                for subv in value:
+                    value_size += len(subv)
+            else:
+                value_size += len(value)
+        return len(data_dict) + len(data_dict) * struct.calcsize(key_encoding) + value_size
+
+    @staticmethod
+    def _encode_data(data_dict, *, key_encoding="B"):
+        """Helper which encodes dictionaries into length encoded structures with the given key
+           encoding."""
+        length = compute_length(data_dict, key_encoding=key_encoding)
+        data = bytearray(length)
+        key_size = struct.calcsize(key_encoding)
+        i = 0
+        for key, value in data_dict.items():
+            if isinstance(value, list):
+                value = b"".join(value)
+            item_length = key_size + len(value)
+            struct.pack_into("B", data, i, item_length)
+            struct.pack_into(key_encoding, data, i + 1, key)
+            data[i + 1 + key_size: i + 1 + item_length] = bytes(value)
+            i += 1 + item_length
+        return data
 
     def matches(self, prefixes, *, all=True):
         """Returns True if the ScanEntry matches all prefixes when ``all`` is True. This is
@@ -233,7 +255,7 @@ class UUID:
 class Descriptor:
     """There is no regular constructor for a Descriptor. A new local Descriptor can be created
        and attached to a Characteristic by calling `add_to_characteristic()`. Remote Descriptor
-       objects are created by `Connection.discover_remote_services()` as part of remote
+       objects are created by ``Connection.discover_remote_services()`` as part of remote
        Characteristics in the remote Services that are discovered."""
 
     # pylint: disable=too-few-public-methods
@@ -259,7 +281,7 @@ class CharacteristicBuffer:  # pylint: disable=too-few-public-methods
 class PacketBuffer:  # pylint: disable=too-few-public-methods
     """Accumulates a Characteristic's incoming packets in a FIFO buffer and facilitates packet aware
        outgoing writes. A packet's size is either the characteristic length or the maximum
-       transmission unit (MTU), whichever is smaller. The MTU can change so check `packet_size`
+       transmission unit (MTU), whichever is smaller. The MTU can change so check ``packet_size``
        before creating a buffer to store data.
 
        When we're the server, we ignore all connections besides the first to subscribe to

@@ -29,7 +29,7 @@ setup(
     # Author details
     author="Adafruit Industries",
     author_email="circuitpython@adafruit.com",
-    install_requires=["bleak", "adafruit-circuitpython-ble"],
+    install_requires=["bleak"],
     # Choose your license
     license="MIT",
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
