@@ -84,7 +84,9 @@ class ScanEntry:
                     value_size += len(subv)
             else:
                 value_size += len(value)
-        return len(data_dict) + len(data_dict) * struct.calcsize(key_encoding) + value_size
+        return (
+            len(data_dict) + len(data_dict) * struct.calcsize(key_encoding) + value_size
+        )
 
     @staticmethod
     def _encode_data(data_dict, *, key_encoding="B"):
@@ -100,7 +102,7 @@ class ScanEntry:
             item_length = key_size + len(value)
             struct.pack_into("B", data, i, item_length)
             struct.pack_into(key_encoding, data, i + 1, key)
-            data[i + 1 + key_size: i + 1 + item_length] = bytes(value)
+            data[i + 1 + key_size : i + 1 + item_length] = bytes(value)
             i += 1 + item_length
         return data
 
