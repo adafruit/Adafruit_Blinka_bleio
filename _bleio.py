@@ -68,7 +68,7 @@ class ScanEntry:
         # print(self._data_dict)
         self.address = Address(bleak_device.address)
 
-        self.advertisement_bytes = self._encode_data(self._data_dict)
+        self.advertisement_bytes = ScanEntry._encode_data(self._data_dict)
         # print(bleak_device.address, bleak_device.name, bleak_device.metadata)
 
         self.connectable = bool(bleak_device.metadata["uuids"])
@@ -90,7 +90,7 @@ class ScanEntry:
     def _encode_data(data_dict, *, key_encoding="B"):
         """Helper which encodes dictionaries into length encoded structures with the given key
            encoding."""
-        length = compute_length(data_dict, key_encoding=key_encoding)
+        length = ScanEntry._compute_length(data_dict, key_encoding=key_encoding)
         data = bytearray(length)
         key_size = struct.calcsize(key_encoding)
         i = 0
