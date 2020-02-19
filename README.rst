@@ -13,7 +13,7 @@ Introduction
     :target: https://github.com/adafruit/Adafruit_Blinka_bleio/actions
     :alt: Build Status
 
-`_bleio` for Blinka based on `bleak`
+`_bleio` for Blinka based on [``bleak``](https://github.com/hbldh/bleak)
 
 
 Dependencies
