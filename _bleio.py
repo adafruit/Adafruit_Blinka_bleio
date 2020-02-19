@@ -40,7 +40,7 @@ import time
 if "GITHUB_ACTION" not in os.environ:
     import bleak
 else:
-    bleak = None # pylint: disable=invalid-name
+    bleak = None  # pylint: disable=invalid-name
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
