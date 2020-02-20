@@ -135,17 +135,12 @@ class ScanEntry:
                         break
 
                 if not all and found:
-                    print(
-                        "matches", prefixes, self._data_dict, self.advertisement_bytes
-                    )
                     return True
                 if all and not found:
                     return False
             elif all:
                 return False
             i += prefix_len
-        if all:
-            print("matches", prefixes, self._data_dict, self.advertisement_bytes)
         return all
 
 
