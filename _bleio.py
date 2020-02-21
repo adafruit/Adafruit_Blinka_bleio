@@ -32,15 +32,23 @@
 
 import asyncio
 import os
+import signal
 import struct
+import subprocess
 import time
 
+print("bleio")
 # Don't import bleak is we're running in the CI. We could mock it out but that
 # would require mocking in all reverse dependencies.
 if "GITHUB_ACTION" not in os.environ:
     import bleak
+    # This will only work on Linux
+    from bleak.backends.bluezdbus import utils
+    from bleak.backends.bluezdbus import reactor
+    from txdbus import client
 else:
     bleak = None  # pylint: disable=invalid-name
+    utils = None  # pylint: disable=invalid-name
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
@@ -49,68 +57,55 @@ __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 class Address:
     """Create a new Address object encapsulating the address value."""
 
+    PUBLIC = 0x0
+    RANDOM_STATIC = 0x1
+    RANDOM_PRIVATE_RESOLVABLE = 0x2
+    RANDOM_PRIVATE_NON_RESOLVABLE = 0x3 
+
     # pylint: disable=too-few-public-methods
-    def __init__(self, address):
+    def __init__(self, address, address_type=RANDOM_STATIC):
         if isinstance(address, bytes):
             self.address_bytes = address
         elif isinstance(address, str):
             address = address.split(":")
             self.address_bytes = bytes([int(x, 16) for x in address])
+        self.type = address_type
 
 
 class ScanEntry:
     """Should not be instantiated directly. Use `_bleio.Adapter.start_scan`."""
 
-    def __init__(self, bleak_device):
-        self.rssi = bleak_device.rssi
-        self._data_dict = {}
-        if "manufacturer_data" in bleak_device.metadata:
-            mfg_data = bleak_device.metadata["manufacturer_data"]
-            self._data_dict[0xFF] = []
-            for mfg in mfg_data:
-                self._data_dict[0xFF].append(
-                    struct.pack("<H", mfg) + bytes(mfg_data[mfg])
-                )
+    def __init__(self, event_type, address, rssi, data):
+        self._data_dict = self._decode_data(data)
         # print(self._data_dict)
-        self.address = Address(bleak_device.address)
-
-        self.advertisement_bytes = ScanEntry._encode_data(self._data_dict)
-        # print(bleak_device.address, bleak_device.name, bleak_device.metadata)
-
-        self.connectable = bool(bleak_device.metadata["uuids"])
-        self.scan_response = False
+        self.address = address
+        self.rssi = rssi
+        self.advertisement_bytes = data
+        self.connectable = event_type < 0x2
+        self.scan_response = event_type == 0x4
 
     @staticmethod
-    def _compute_length(data_dict, *, key_encoding="B"):
-        """Computes the length of the encoded data dictionary."""
-        value_size = 0
-        for value in data_dict.values():
-            if isinstance(value, list):
-                for subv in value:
-                    value_size += len(subv)
-            else:
-                value_size += len(value)
-        return (
-            len(data_dict) + len(data_dict) * struct.calcsize(key_encoding) + value_size
-        )
-
-    @staticmethod
-    def _encode_data(data_dict, *, key_encoding="B"):
-        """Helper which encodes dictionaries into length encoded structures with the given key
+    def _decode_data(data, *, key_encoding="B"):
+        """Helper which decodes length encoded structures into a dictionary with the given key
            encoding."""
-        length = ScanEntry._compute_length(data_dict, key_encoding=key_encoding)
-        data = bytearray(length)
-        key_size = struct.calcsize(key_encoding)
         i = 0
-        for key, value in data_dict.items():
-            if isinstance(value, list):
-                value = b"".join(value)
-            item_length = key_size + len(value)
-            struct.pack_into("B", data, i, item_length)
-            struct.pack_into(key_encoding, data, i + 1, key)
-            data[i + 1 + key_size : i + 1 + item_length] = bytes(value)
-            i += 1 + item_length
-        return data
+        data_dict = {}
+        key_size = struct.calcsize(key_encoding)
+        while i < len(data):
+            item_length = data[i]
+            i += 1
+            if item_length == 0:
+                break
+            key = struct.unpack_from(key_encoding, data, i)[0]
+            value = data[i + key_size:i + item_length]
+            if key in data_dict:
+                if not isinstance(data_dict[key], list):
+                    data_dict[key] = [data_dict[key]]
+                data_dict[key].append(value)
+            else:
+                data_dict[key] = value
+            i += item_length
+        return data_dict
 
     def matches(self, prefixes, *, all=True):
         """Returns True if the ScanEntry matches all prefixes when ``all`` is True. This is
@@ -135,17 +130,12 @@ class ScanEntry:
                         break
 
                 if not all and found:
-                    print(
-                        "matches", prefixes, self._data_dict, self.advertisement_bytes
-                    )
                     return True
                 if all and not found:
                     return False
             elif all:
                 return False
             i += prefix_len
-        if all:
-            print("matches", prefixes, self._data_dict, self.advertisement_bytes)
         return all
 
 
@@ -168,6 +158,41 @@ class Adapter:
 
     def __init__(self, address):
         self.address = Address(address)
+        self._hcitool = None
+
+    @staticmethod
+    def _parse_buffered(buffered, prefixes, minimum_rssi, active):
+        # > is controller to host, 04 is for an HCI Event packet, and 3E is an LE meta-event
+        if buffered[0].startswith(b'> 04 3E'):
+            parameter_length = int(buffered[0][8:10], 16)
+            subevent_code = int(buffered[0][11:13], 16)
+            if subevent_code == 0x02:
+                num_reports = int(buffered[0][14:16], 16)
+                if num_reports > 1:
+                    raise NotImplementedError("Multiple packed reports")
+                # Parse RSSI first so we can filter on it.
+                rssi = int(buffered[-1][-4:-2], 16)
+                if rssi > 127:
+                    rssi = (256 - rssi) * -1
+                if rssi == 127 or rssi < minimum_rssi:
+                    return
+                event_type = int(buffered[0][17:19], 16)
+                # Filter out scan responses if we weren't supposed to active scan.
+                if event_type == 0x04 and not active:
+                    return
+                address_type = int(buffered[0][20:22], 16)
+                address = bytes.fromhex(buffered[0][23:40].decode("utf-8"))
+                # Mod the address type by two because 2 and 3 are resolved versions of public and random static.
+                address = Address(address, address_type % 2)
+
+                data_length = int(buffered[0][41:43], 16)
+                buffered[0] = buffered[0][43:]
+                buffered[-1] = buffered[-1][:-4]
+                data = bytes.fromhex("".join([x.decode("utf-8") for x in buffered]))
+                
+                scan_entry = ScanEntry(event_type, address, rssi, data)
+                if scan_entry.matches(prefixes, all=False):
+                    return scan_entry
 
     def start_scan(
         self,
@@ -202,21 +227,46 @@ class Adapter:
            :rtype: iterable
            """
         # pylint: disable=unused-argument
-        # For now we ignore self, we may use it in the future though.
-        # pylint: disable=no-self-use
+        # We can't detect whether hcidump has enough permissions so double check them if no scans
+        # are found.
+        #
+        # On Debian do:
+        #     sudo setcap 'cap_net_raw,cap_net_admin+eip' `which hcitool`
+        #     sudo setcap 'cap_net_raw,cap_net_admin+eip' `which hcidump`
+        hcidump = subprocess.Popen(["hcidump", "--raw", "hci"], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+        if not self._hcitool:
+            self._hcitool = subprocess.Popen(["hcitool", "lescan", "--duplicates"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Throw away the first two output lines of hcidump because they are version info.
+        hcidump.stdout.readline()
+        hcidump.stdout.readline()
+        returncode = self._hcitool.poll()
         start_time = time.monotonic()
-        while not timeout or time.monotonic() - start_time < timeout:
-            devices = asyncio.get_event_loop().run_until_complete(
-                bleak.discover(timeout=interval)
-            )
-            for device in devices:
-                scan_entry = ScanEntry(device)
-                if scan_entry.matches(prefixes, all=False):
-                    yield scan_entry
+        buffered = []
+        while returncode is None and (not timeout or time.monotonic() - start_time < timeout):
+            line = hcidump.stdout.readline()
+            #print(line, line[0])
+            if line[0] != 32: # 32 is ascii for space
+                if buffered:
+                    parsed = self._parse_buffered(buffered, prefixes, minimum_rssi, active)
+                    if parsed:
+                        yield parsed
+                    buffered.clear()
+            buffered.append(line)
+            returncode = self._hcitool.poll()
+        self.stop_scan()
 
     def stop_scan(self):
         """Stop the current scan."""
         # This does nothing for now because the scan isn't actually ongoing.
+        if self._hcitool:
+            if self._hcitool.returncode is None:
+                self._hcitool.send_signal(signal.SIGINT)
+                self._hcitool.wait()
+            self._hcitool = None
+
+    def __del__(self):
+        self.stop_scan()
 
 
 class Attribute:
@@ -324,5 +374,19 @@ class Characteristic:
         """Create a new Characteristic object, and add it to this Service."""
         raise NotImplementedError()
 
+async def _get_mac():
+    loop = asyncio.get_event_loop()
+    bus = await client.connect(reactor, "system").asFuture(loop)
+    objs = await utils.get_managed_objects(bus, loop, object_path_filter=None)
+    bus.disconnect()
+    for o in objs.values():
+        if "org.bluez.Adapter1" in o:
+            return o["org.bluez.Adapter1"]["Address"]
+    return None 
 
-adapter = Adapter(b"\x00\x00\x00\x00\x00\x00")  # pylint: disable=invalid-name
+_address = b"\x00\x00\x00\x00\x00\x00"
+if utils:
+    _address = asyncio.get_event_loop().run_until_complete(_get_mac())
+
+if _address:
+    adapter = Adapter(_address)  # pylint: disable=invalid-name
