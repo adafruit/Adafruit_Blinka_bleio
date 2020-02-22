@@ -102,5 +102,5 @@ Raspberry Pi 3b Rev 2
 
 The Raspberry Pi 3b's BLE chip is connected over UART to the main processor without flow control.
 This can cause unreliability with BLE. To improve reliability, we can slow the UART. To do so,
-edit `/usr/bin/btuart` and replace the ``921600`` with ``460800``.
+edit ``/usr/bin/btuart`` and replace the ``921600`` with ``460800``.
 
