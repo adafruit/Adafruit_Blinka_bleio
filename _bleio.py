@@ -40,8 +40,6 @@ import time
 # Don't import bleak is we're running in the CI. We could mock it out but that
 # would require mocking in all reverse dependencies.
 if "GITHUB_ACTION" not in os.environ:
-    import bleak
-
     # This will only work on Linux
     from bleak.backends.bluezdbus import utils
     from bleak.backends.bluezdbus import reactor
@@ -56,13 +54,13 @@ __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 
 class Address:
     """Create a new Address object encapsulating the address value."""
+    # pylint: disable=too-few-public-methods
 
     PUBLIC = 0x0
     RANDOM_STATIC = 0x1
     RANDOM_PRIVATE_RESOLVABLE = 0x2
     RANDOM_PRIVATE_NON_RESOLVABLE = 0x3
 
-    # pylint: disable=too-few-public-methods
     def __init__(self, address, address_type=RANDOM_STATIC):
         if isinstance(address, bytes):
             self.address_bytes = address
@@ -164,7 +162,6 @@ class Adapter:
     def _parse_buffered(buffered, prefixes, minimum_rssi, active):
         # > is controller to host, 04 is for an HCI Event packet, and 3E is an LE meta-event
         if buffered[0].startswith(b"> 04 3E"):
-            parameter_length = int(buffered[0][8:10], 16)
             subevent_code = int(buffered[0][11:13], 16)
             if subevent_code == 0x02:
                 num_reports = int(buffered[0][14:16], 16)
@@ -175,17 +172,17 @@ class Adapter:
                 if rssi > 127:
                     rssi = (256 - rssi) * -1
                 if rssi == 127 or rssi < minimum_rssi:
-                    return
+                    return None
                 event_type = int(buffered[0][17:19], 16)
                 # Filter out scan responses if we weren't supposed to active scan.
                 if event_type == 0x04 and not active:
-                    return
+                    return None
                 address_type = int(buffered[0][20:22], 16)
                 address = bytes.fromhex(buffered[0][23:40].decode("utf-8"))
-                # Mod the address type by two because 2 and 3 are resolved versions of public and random static.
+                # Mod the address type by two because 2 and 3 are resolved versions of public and
+                # random static.
                 address = Address(address, address_type % 2)
 
-                data_length = int(buffered[0][41:43], 16)
                 buffered[0] = buffered[0][43:]
                 buffered[-1] = buffered[-1][:-4]
                 data = bytes.fromhex("".join([x.decode("utf-8") for x in buffered]))
@@ -193,6 +190,7 @@ class Adapter:
                 scan_entry = ScanEntry(event_type, address, rssi, data)
                 if scan_entry.matches(prefixes, all=False):
                     return scan_entry
+        return None
 
     def start_scan(
         self,
@@ -227,21 +225,6 @@ class Adapter:
            :rtype: iterable
            """
         # pylint: disable=unused-argument
-        # We can't detect whether hcidump has enough permissions so double check them if no scans
-        # are found.
-        #
-        # To get permissions we use capabilities to grant hcitool and hcidump raw access. This is
-        # very powerful! So, to limit access we change file execution permissions to restrict it
-        # to users in the bluetooth group.
-        #
-        # To add your user to the bluetooth group do:
-        #     sudo usermod -a -G bluetooth <your username>
-        #
-        # On Debian based distributions do:
-        #     sudo chown :bluetooth /usr/bin/hci*
-        #     sudo chmod o-x /usr/bin/hci*
-        #     sudo setcap 'cap_net_raw,cap_net_admin+eip' `which hcitool`
-        #     sudo setcap 'cap_net_raw,cap_net_admin+eip' `which hcidump`
         hcidump = subprocess.Popen(
             ["hcidump", "--raw", "hci"],
             stdin=subprocess.DEVNULL,
@@ -403,14 +386,15 @@ async def _get_mac():
     bus = await client.connect(reactor, "system").asFuture(loop)
     objs = await utils.get_managed_objects(bus, loop, object_path_filter=None)
     bus.disconnect()
-    for o in objs.values():
-        if "org.bluez.Adapter1" in o:
-            return o["org.bluez.Adapter1"]["Address"]
+    for obj in objs.values():
+        if "org.bluez.Adapter1" in obj:
+            return obj["org.bluez.Adapter1"]["Address"]
     return None
 
 
-_address = b"\x00\x00\x00\x00\x00\x00"
+_address = b"\x00\x00\x00\x00\x00\x00" # pylint: disable=invalid-name
 if utils:
+    # pylint: disable=invalid-name
     _address = asyncio.get_event_loop().run_until_complete(_get_mac())
 
 if _address:
