@@ -37,11 +37,11 @@ import struct
 import subprocess
 import time
 
-print("bleio")
 # Don't import bleak is we're running in the CI. We could mock it out but that
 # would require mocking in all reverse dependencies.
 if "GITHUB_ACTION" not in os.environ:
     import bleak
+
     # This will only work on Linux
     from bleak.backends.bluezdbus import utils
     from bleak.backends.bluezdbus import reactor
@@ -60,7 +60,7 @@ class Address:
     PUBLIC = 0x0
     RANDOM_STATIC = 0x1
     RANDOM_PRIVATE_RESOLVABLE = 0x2
-    RANDOM_PRIVATE_NON_RESOLVABLE = 0x3 
+    RANDOM_PRIVATE_NON_RESOLVABLE = 0x3
 
     # pylint: disable=too-few-public-methods
     def __init__(self, address, address_type=RANDOM_STATIC):
@@ -97,7 +97,7 @@ class ScanEntry:
             if item_length == 0:
                 break
             key = struct.unpack_from(key_encoding, data, i)[0]
-            value = data[i + key_size:i + item_length]
+            value = data[i + key_size : i + item_length]
             if key in data_dict:
                 if not isinstance(data_dict[key], list):
                     data_dict[key] = [data_dict[key]]
@@ -163,7 +163,7 @@ class Adapter:
     @staticmethod
     def _parse_buffered(buffered, prefixes, minimum_rssi, active):
         # > is controller to host, 04 is for an HCI Event packet, and 3E is an LE meta-event
-        if buffered[0].startswith(b'> 04 3E'):
+        if buffered[0].startswith(b"> 04 3E"):
             parameter_length = int(buffered[0][8:10], 16)
             subevent_code = int(buffered[0][11:13], 16)
             if subevent_code == 0x02:
@@ -189,7 +189,7 @@ class Adapter:
                 buffered[0] = buffered[0][43:]
                 buffered[-1] = buffered[-1][:-4]
                 data = bytes.fromhex("".join([x.decode("utf-8") for x in buffered]))
-                
+
                 scan_entry = ScanEntry(event_type, address, rssi, data)
                 if scan_entry.matches(prefixes, all=False):
                     return scan_entry
@@ -230,25 +230,48 @@ class Adapter:
         # We can't detect whether hcidump has enough permissions so double check them if no scans
         # are found.
         #
-        # On Debian do:
+        # To get permissions we use capabilities to grant hcitool and hcidump raw access. This is
+        # very powerful! So, to limit access we change file execution permissions to restrict it
+        # to users in the bluetooth group.
+        #
+        # To add your user to the bluetooth group do:
+        #     sudo usermod -a -G bluetooth <your username>
+        #
+        # On Debian based distributions do:
+        #     sudo chown :bluetooth /usr/bin/hci*
+        #     sudo chmod o-x /usr/bin/hci*
         #     sudo setcap 'cap_net_raw,cap_net_admin+eip' `which hcitool`
         #     sudo setcap 'cap_net_raw,cap_net_admin+eip' `which hcidump`
-        hcidump = subprocess.Popen(["hcidump", "--raw", "hci"], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        hcidump = subprocess.Popen(
+            ["hcidump", "--raw", "hci"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
 
         if not self._hcitool:
-            self._hcitool = subprocess.Popen(["hcitool", "lescan", "--duplicates"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self._hcitool = subprocess.Popen(
+                ["hcitool", "lescan", "--duplicates"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         # Throw away the first two output lines of hcidump because they are version info.
         hcidump.stdout.readline()
         hcidump.stdout.readline()
         returncode = self._hcitool.poll()
         start_time = time.monotonic()
         buffered = []
-        while returncode is None and (not timeout or time.monotonic() - start_time < timeout):
+        while returncode is None and (
+            not timeout or time.monotonic() - start_time < timeout
+        ):
             line = hcidump.stdout.readline()
-            #print(line, line[0])
-            if line[0] != 32: # 32 is ascii for space
+            # print(line, line[0])
+            if line[0] != 32:  # 32 is ascii for space
                 if buffered:
-                    parsed = self._parse_buffered(buffered, prefixes, minimum_rssi, active)
+                    parsed = self._parse_buffered(
+                        buffered, prefixes, minimum_rssi, active
+                    )
                     if parsed:
                         yield parsed
                     buffered.clear()
@@ -374,6 +397,7 @@ class Characteristic:
         """Create a new Characteristic object, and add it to this Service."""
         raise NotImplementedError()
 
+
 async def _get_mac():
     loop = asyncio.get_event_loop()
     bus = await client.connect(reactor, "system").asFuture(loop)
@@ -382,7 +406,8 @@ async def _get_mac():
     for o in objs.values():
         if "org.bluez.Adapter1" in o:
             return o["org.bluez.Adapter1"]["Address"]
-    return None 
+    return None
+
 
 _address = b"\x00\x00\x00\x00\x00\x00"
 if utils:
