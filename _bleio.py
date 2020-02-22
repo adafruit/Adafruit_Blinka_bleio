@@ -225,7 +225,7 @@ class Adapter:
            :returns: an iterable of `_bleio.ScanEntry` objects
            :rtype: iterable
            """
-        # pylint: disable=unused-argument
+        # pylint: disable=unused-argument,too-many-locals
         hcidump = subprocess.Popen(
             ["hcidump", "--raw", "hci"],
             stdin=subprocess.DEVNULL,
