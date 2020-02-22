@@ -54,6 +54,7 @@ __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 
 class Address:
     """Create a new Address object encapsulating the address value."""
+
     # pylint: disable=too-few-public-methods
 
     PUBLIC = 0x0
@@ -392,7 +393,7 @@ async def _get_mac():
     return None
 
 
-_address = b"\x00\x00\x00\x00\x00\x00" # pylint: disable=invalid-name
+_address = b"\x00\x00\x00\x00\x00\x00"  # pylint: disable=invalid-name
 if utils:
     # pylint: disable=invalid-name
     _address = asyncio.get_event_loop().run_until_complete(_get_mac())
