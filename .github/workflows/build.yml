@@ -39,13 +39,13 @@ jobs:
         source actions-ci/install.sh
     - name: Library version
       run: git describe --dirty --always --tags
+    - name: Check formatting
+      run: |
+        black --check --target-version=py35 .
     - name: PyLint
       run: |
         pylint $( find . -path './_bleio*.py' )
         ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace $( find . -path "./examples/*.py" ))
-    - name: Check formatting
-      run: |
-        black --check --target-version=py35 .
     - name: Build assets
       run: circuitpython-build-bundles --filename_prefix ${{ steps.repo-name.outputs.repo-name }} --library_location .
     - name: Build docs

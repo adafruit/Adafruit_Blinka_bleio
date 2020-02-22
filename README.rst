@@ -13,7 +13,7 @@ Introduction
     :target: https://github.com/adafruit/Adafruit_Blinka_bleio/actions
     :alt: Build Status
 
-`_bleio` for Blinka based on [``bleak``](https://github.com/hbldh/bleak)
+`_bleio` for Blinka based on `bleak <https://github.com/hbldh/bleak>`_ and bluez.
 
 
 Dependencies
@@ -21,6 +21,10 @@ Dependencies
 This driver depends on:
 
 * `bleak <https://github.com/hbldh/bleak>`_
+
+It also depends on these Debian packages not install on Raspbian by default:
+
+* ``bluez-hcidump``
 
 Installing from PyPI
 =====================
@@ -47,6 +51,31 @@ To install in a virtual environment in your current project:
     source .env/bin/activate
     pip3 install adafruit-blinka-bleio
 
+Permissions
+=============
+
+For comprehensive scanning we use ``hcidump`` and ``hcitool``. By default, only root has
+enough privileges though.
+
+So, to get permissions we use capabilities to grant ``hcitool`` and ``hcidump`` raw network
+access. This is very powerful! So, to limit access we change file execution permissions to
+restrict it to users in the bluetooth group.
+
+To add your user to the bluetooth group do:
+
+.. code-block:: shell
+
+    sudo usermod -a -G bluetooth <your username>
+
+To set permissions do:
+
+.. code-block:: shell
+
+    sudo chown :bluetooth /usr/bin/hci*
+    sudo chmod o-x /usr/bin/hci*
+    sudo setcap 'cap_net_raw,cap_net_admin+eip' /usr/bin/hcitool
+    sudo setcap 'cap_net_raw,cap_net_admin+eip' /usr/bin/hcidump
+
 Usage Example
 =============
 
@@ -64,3 +93,14 @@ Documentation
 =============
 
 For information on building library documentation, please check out `this guide <https://learn.adafruit.com/creating-and-sharing-a-circuitpython-library/sharing-our-docs-on-readthedocs#sphinx-5-1>`_.
+
+Troubleshooting
+================
+
+Raspberry Pi 3b Rev 2
+^^^^^^^^^^^^^^^^^^^^^^
+
+The Raspberry Pi 3b's BLE chip is connected over UART to the main processor without flow control.
+This can cause unreliability with BLE. To improve reliability, we can slow the UART. To do so,
+edit ``/usr/bin/btuart`` and replace the ``921600`` with ``460800``.
+
