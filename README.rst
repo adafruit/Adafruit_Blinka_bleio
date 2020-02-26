@@ -97,8 +97,8 @@ For information on building library documentation, please check out `this guide 
 Troubleshooting
 ================
 
-Raspberry Pi 3b Rev 2
-^^^^^^^^^^^^^^^^^^^^^^
+Raspberry Pi 3b Rev 1.2
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Raspberry Pi 3b's BLE chip is connected over UART to the main processor without flow control.
 This can cause unreliability with BLE. To improve reliability, we can slow the UART. To do so,
