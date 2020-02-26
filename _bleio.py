@@ -67,7 +67,7 @@ class Address:
             self.address_bytes = address
         elif isinstance(address, str):
             address = address.split(":")
-            self.address_bytes = bytes([int(x, 16) for x in address])
+            self.address_bytes = bytes(reversed([int(x, 16) for x in address]))
         self.type = address_type
 
 
