@@ -39,7 +39,7 @@ import time
 
 # Don't import bleak is we're running in the CI. We could mock it out but that
 # would require mocking in all reverse dependencies.
-if "GITHUB_ACTION" not in os.environ:
+if "GITHUB_ACTION" not in os.environ and "READTHEDOCS" not in os.environ:
     # This will only work on Linux
     from bleak.backends.bluezdbus import utils
     from bleak.backends.bluezdbus import reactor
