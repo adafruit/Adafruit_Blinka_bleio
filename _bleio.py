@@ -42,8 +42,8 @@ import time
 if "GITHUB_ACTION" not in os.environ and "READTHEDOCS" not in os.environ:
     # This will only work on Linux
     from bleak.backends.bluezdbus import utils
-    from bleak.backends.bluezdbus import reactor
     from txdbus import client
+    from twisted.internet.asyncioreactor import AsyncioSelectorReactor
 else:
     bleak = None  # pylint: disable=invalid-name
     utils = None  # pylint: disable=invalid-name
@@ -384,6 +384,7 @@ class Characteristic:
 
 async def _get_mac():
     loop = asyncio.get_event_loop()
+    reactor = AsyncioSelectorReactor(loop)
     bus = await client.connect(reactor, "system").asFuture(loop)
     objs = await utils.get_managed_objects(bus, loop, object_path_filter=None)
     bus.disconnect()
