@@ -55,7 +55,7 @@ Permissions
 =============
 
 For comprehensive scanning we use ``hcidump`` and ``hcitool``. By default, only root has
-enough privileges though.
+enough privileges to do what we need.
 
 So, to get permissions we use capabilities to grant ``hcitool`` and ``hcidump`` raw network
 access. This is very powerful! So, to limit access we change file execution permissions to
@@ -103,4 +103,3 @@ Raspberry Pi 3b Rev 1.2
 The Raspberry Pi 3b's BLE chip is connected over UART to the main processor without flow control.
 This can cause unreliability with BLE. To improve reliability, we can slow the UART. To do so,
 edit ``/usr/bin/btuart`` and replace the ``921600`` with ``460800``.
-

@@ -52,6 +52,26 @@ __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 
 
+class BluetoothError(Exception):
+    """Catch-all exception for Bluetooth related errors."""
+
+
+class ConnectionError(BluetoothError):  # pylint: disable=redefined-builtin
+    """Raised when a connection is unavailable."""
+
+
+class RoleError(BluetoothError):
+    """
+    Raised when a resource is used in a mismatched role. For example,
+    will be raised if you attempt to set a local CCCD
+    that can only be set when remote.
+    """
+
+
+class SecurityError(BluetoothError):
+    """Raised when a security related error occurs."""
+
+
 class Address:
     """Create a new Address object encapsulating the address value."""
 
