@@ -336,6 +336,16 @@ class UUID:
         self.size = 128
         self.uuid128 = b"\x00" * (128 // 8)
 
+    def pack_into(self, buffer, offset=0):
+        """Packs the UUID into the buffer at the given offset."""
+        if len(buffer) - offset >= self.size // 8:
+            for byte_position in range(self.size // 8):
+                buffer[offset + byte_position] = self.uuid128[byte_position]
+        else:
+            raise IndexError(
+                "Buffer size too small or offset is too close to the end of the buffer"
+            )
+
 
 class Descriptor:
     """There is no regular constructor for a Descriptor. A new local Descriptor can be created
