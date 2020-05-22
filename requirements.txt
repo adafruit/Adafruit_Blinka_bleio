@@ -1,1 +1,3 @@
+Adafruit-Blinka
 bleak
+janus
