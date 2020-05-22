@@ -35,8 +35,37 @@ import _bleio
 class ScanEntry:
     def __init__(self, device):
         # TODO break down device
-        self.device = device
+        self._device = device
+
+    def matches(self, prefixes, all):
+        # TODO
+        return True
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return str(self._device)
 
     @property
-    def device(self):
-        return self.device
+    def address(self):
+        return self._device.address
+
+    @property
+    def rssi(self):
+        return self._device.rssi
+
+    @property
+    def connectable(self):
+        # TODO
+        return None
+
+    @property
+    def scan_response(self):
+        # TODO
+        return None
+
+    @property
+    def advertisement_bytes(self):
+        # TODO
+        return None

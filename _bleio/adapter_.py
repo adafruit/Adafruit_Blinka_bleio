@@ -44,8 +44,8 @@ class Adapter:
         if _bleio.adapter:
             return _bleio.adapter
         self._name = "TODO"
-        self._scan_results_queue = None
         # Unbounded FIFO for scan results
+        self._scan_results_queue = None
         self._scanning_in_progress = False
 
     @property
@@ -130,56 +130,56 @@ class Adapter:
         while not self._scan_results_queue:
             pass
 
-        return iter(self._scan_results_queue.sync_q.get, None)
-
-        # while True:
-        #     scan_entry = self._scan_results_queue.sync_q.get()
-        #     if scan_entry:
-        #         yield scan_entry
-        #     else:
-        #         # Terminate when None is received.
-
-        #         raise StopIteration
+        while self._scanning_in_progress:
+            pass
+            scan_entry = self._scan_results_queue.sync_q.get()
+            if scan_entry:
+                yield scan_entry
+            else:
+                # Clean up and terminate when None is received.
+                # Wait for thread to finish.
+                scan_thread.join()
+                break
 
     def _start_scan_async(self, timeout):
-        asyncio.run(self._scantest(timeout))
+        # Creates event loop and cleans it up when done.
+        asyncio.run(self._scan(timeout))
+        self._scanning_in_progress = False
+        self._scan_results_queue = None
 
     async def _scantest(self, timeout):
         self._scan_results_queue = janus.Queue()
         start = time.time()
         i = 0
-        while time.time() - start < timeout:
-            await asyncio.sleep(1)
+        while self._scanning_in_progress and time.time() - start < timeout:
+            await asyncio.sleep(0.5)
             i += 1
             await self._scan_results_queue.async_q.put(i)
         await self._scan_results_queue.async_q.put(None)
-
 
     async def _scan(self, timeout: float) -> None:
         """
         Run as a task to scan and add ScanEntry objects to the queue.
         Repeat until stopped if timeout is None.
         """
+        self._scan_results_queue = janus.Queue()
+
         # If timeout is forever, do it in chunks.
         scan_timeout = 5.0 if timeout is None else timeout
 
-        print("entering _scan loop")
         while self._scanning_in_progress:
             devices = await BleakScanner.discover(timeout=scan_timeout)
-            print("discover results", devices)
             for device in devices:
                 # Convert bleak scan result to a ScanEntry and save it.
                 if device is not None:
                     # TODO: filter results
-                    await self._scan_results_queue.put(_bleio.ScanEntry(device))
+                    await self._scan_results_queue.async_q.put(_bleio.ScanEntry(device))
             if timeout is not None:
                 # Repeat scan only if no timeout given.
                 break
-        self._scanning_in_progress = False
-        print("exit _scan loop")
-
         # Add sentinel end iteration value to queue, and finish task.
-        self._scan_results_queue.put(None)
+        await self._scan_results_queue.async_q.put(None)
+        self._scanning_in_progress = False
 
     def stop_scan(self) -> None:
         self._scanning_in_progress = False
