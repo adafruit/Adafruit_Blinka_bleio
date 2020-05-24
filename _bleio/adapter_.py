@@ -34,7 +34,7 @@ import time
 
 # janus.Queue is thread-safe and can be used from both sync and async code.
 import janus
-from bleak import BleakScanner
+from bleak import discover
 
 import _bleio
 
@@ -121,8 +121,7 @@ class Adapter:
 
         self._scanning_in_progress = True
 
-        # Create a new event loop to do the scanning.
-        # It will run in a separate thread.
+        # Run the scanner in a separate thread
         scan_thread = Thread(target=self._start_scan_async, args=(timeout,))
         scan_thread.start()
 
@@ -130,32 +129,40 @@ class Adapter:
         while not self._scan_results_queue:
             pass
 
-        while self._scanning_in_progress:
-            pass
-            scan_entry = self._scan_results_queue.sync_q.get()
+        while True:
+            q = self._scan_results_queue
+            scan_entry = q.sync_q.get()
+            q.sync_q.task_done()
             if scan_entry:
                 yield scan_entry
             else:
                 # Clean up and terminate when None is received.
                 # Wait for thread to finish.
+                self._scanning_in_progress = False
                 scan_thread.join()
+                self._scan_results_queue = None
                 break
+
 
     def _start_scan_async(self, timeout):
         # Creates event loop and cleans it up when done.
-        asyncio.run(self._scan(timeout))
+        asyncio.run(self._scan(timeout), debug=True)
         self._scanning_in_progress = False
-        self._scan_results_queue = None
 
     async def _scantest(self, timeout):
-        self._scan_results_queue = janus.Queue()
+        q = self._scan_results_queue = janus.Queue()
         start = time.time()
         i = 0
         while self._scanning_in_progress and time.time() - start < timeout:
             await asyncio.sleep(0.5)
             i += 1
-            await self._scan_results_queue.async_q.put(i)
-        await self._scan_results_queue.async_q.put(None)
+            await q.async_q.put(i)
+        await q.async_q.put(None)
+        # Wait for queue to be emptied out.
+        await q.async_q.join()
+        q.close()
+        await q.wait_closed()
+
 
     async def _scan(self, timeout: float) -> None:
         """
@@ -168,7 +175,7 @@ class Adapter:
         scan_timeout = 5.0 if timeout is None else timeout
 
         while self._scanning_in_progress:
-            devices = await BleakScanner.discover(timeout=scan_timeout)
+            devices = await discover(timeout=scan_timeout)
             for device in devices:
                 # Convert bleak scan result to a ScanEntry and save it.
                 if device is not None:
@@ -179,7 +186,8 @@ class Adapter:
                 break
         # Add sentinel end iteration value to queue, and finish task.
         await self._scan_results_queue.async_q.put(None)
-        self._scanning_in_progress = False
+        # Wait for queue to be emptied out.
+        await self._scan_results_queue.async_q.join()
 
     def stop_scan(self) -> None:
         self._scanning_in_progress = False
