@@ -26,7 +26,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import asyncio
 from threading import Thread
@@ -45,7 +45,7 @@ class Adapter:
             return _bleio.adapter
         self._name = "TODO"
         # Unbounded FIFO for scan results
-        self._scan_results_queue = None
+        self._scan_queue = None
         self._scanning_in_progress = False
 
     @property
@@ -122,75 +122,89 @@ class Adapter:
         self._scanning_in_progress = True
 
         # Run the scanner in a separate thread
-        scan_thread = Thread(target=self._start_scan_async, args=(timeout,))
-        scan_thread.start()
+        self._scan_thread = Thread(target=self._start_scan_async, args=(timeout,))
+        self._scan_thread.start()
 
-        # Wait for queue creation.
-        while not self._scan_results_queue:
+        # Wait for queue creation, which must be done
+        # in the async thread so it gets the right event loop.
+        while not self._scan_queue:
             pass
 
         while True:
-            q = self._scan_results_queue
-            scan_entry = q.sync_q.get()
-            q.sync_q.task_done()
-            if scan_entry:
-                yield scan_entry
+            scan_entry = self._next_from_queue()
+            if scan_entry is None:
+                # Finish iterator when sentinel end value is received.
+                return
             else:
-                # Clean up and terminate when None is received.
-                # Wait for thread to finish.
-                self._scanning_in_progress = False
-                scan_thread.join()
-                self._scan_results_queue = None
-                break
+                yield scan_entry
+
+    def stop_scan(self) -> None:
+        self._scanning_in_progress = False
+        # Drain the queue of any unread entries.
+        # The last entry will be a None.
+        while self._next_from_queue() is not None:
+            pass
+
+    def _next_from_queue(self) -> Any:
+        """Read next item from scan entry queue. When done, clean up and return None."""
+        q = self._scan_queue
+        scan_entry = q.sync_q.get()
+        # Tell producer we read the entry. This allows clean shutdown when done.
+        q.sync_q.task_done()
+
+        # When sentinel end value is received,
+        # Wait for async thread to finish, and then discard queue.
+        if scan_entry is None:
+            self._scan_thread.join()
+            self._scan_queue = None
+
+        return scan_entry
 
 
     def _start_scan_async(self, timeout):
+        """Run the async part of start_scan()."""
         # Creates event loop and cleans it up when done.
         asyncio.run(self._scan(timeout), debug=True)
         self._scanning_in_progress = False
 
-    async def _scantest(self, timeout):
-        q = self._scan_results_queue = janus.Queue()
-        start = time.time()
-        i = 0
-        while self._scanning_in_progress and time.time() - start < timeout:
-            await asyncio.sleep(0.5)
-            i += 1
-            await q.async_q.put(i)
-        await q.async_q.put(None)
-        # Wait for queue to be emptied out.
-        await q.async_q.join()
-        q.close()
-        await q.wait_closed()
-
-
-    async def _scan(self, timeout: float) -> None:
+    async def _scan(self, timeout: Union[float, None]) -> None:
         """
         Run as a task to scan and add ScanEntry objects to the queue.
-        Repeat until stopped if timeout is None.
+        Repeat until timeout period has elapsed, or if timeout is None,
+        until stop_scan is called()
         """
-        self._scan_results_queue = janus.Queue()
+        q = self._scan_queue = janus.Queue()
 
         # If timeout is forever, do it in chunks.
-        scan_timeout = 5.0 if timeout is None else timeout
+
+        # The bleak discover(timeout) is the total time to spend scanning.
+        # No intermediate results are returned during the timeout period,
+        # unlike _bleio.start_scan(). So scan in short increments to emulate
+        # returning intermediate results.
+
+        start = time.time()
+        bleak_timeout = min(timeout, 0.25)
 
         while self._scanning_in_progress:
-            devices = await discover(timeout=scan_timeout)
+            devices = await discover(timeout=bleak_timeout)
             for device in devices:
                 # Convert bleak scan result to a ScanEntry and save it.
                 if device is not None:
                     # TODO: filter results
-                    await self._scan_results_queue.async_q.put(_bleio.ScanEntry(device))
-            if timeout is not None:
-                # Repeat scan only if no timeout given.
+                    await q.async_q.put(_bleio.ScanEntry(device))
+            if timeout is not None and time.time() - start > timeout:
+                # Quit when timeout period has elapsed.
                 break
-        # Add sentinel end iteration value to queue, and finish task.
-        await self._scan_results_queue.async_q.put(None)
-        # Wait for queue to be emptied out.
-        await self._scan_results_queue.async_q.join()
 
-    def stop_scan(self) -> None:
-        self._scanning_in_progress = False
+        # Finished scanning.
+        # Put sentinel end iteration value on queue.
+        await q.async_q.put(None)
+
+        # Wait for queue to be emptied.
+        await q.async_q.join()
+        q.close()
+        await q.wait_closed()
+
 
     @property
     def connected(self):
