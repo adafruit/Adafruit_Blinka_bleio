@@ -28,21 +28,32 @@ _bleio implementation for Adafruit_Blinka_bleio
 
 import asyncio
 
-adapter = None
+adapter = None  # pylint: disable=invalid-name
 
-from _bleio.address import *
+
+def call_async(coro):
+    """Call an async routine and wait for its result."""
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(coro())
+
+
+# pylint: disable=wrong-import-position
+
+# These are in dependency order.
 from _bleio.uuid import *
-
-from _bleio.adapter_ import *
+from _bleio.address import *
 from _bleio.attribute import *
 from _bleio.characteristic import *
-from _bleio.characteristic_buffer import *
+from _bleio.service import *
 from _bleio.connection import *
-from _bleio.exceptions import *
+from _bleio.descriptor import *
+
+from _bleio.adapter_ import *
+from _bleio.characteristic_buffer import *
+from _bleio.exceptions import *  # pylint: disable=redefined-builtin
 from _bleio.packet_buffer import *
 from _bleio.scan_entry import *
 from _bleio.scan_results import *
-from _bleio.service import *
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
@@ -51,7 +62,3 @@ __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 adapter = Adapter()
 # enable adapter on import.
 adapter.enabled = True
-
-def asyncio_run_in_loop(coro):
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(coro())

@@ -29,12 +29,13 @@ _bleio implementation for Adafruit_Blinka_bleio
 from typing import Any, Iterable, Union
 
 import asyncio
+import os
 from threading import Thread
 import time
 
 # janus.Queue is thread-safe and can be used from both sync and async code.
 import janus
-from bleak import discover
+from bleak import BleakClient, BleakScanner
 
 import _bleio
 
@@ -42,24 +43,26 @@ import _bleio
 class Adapter:
     def __init__(self):
         if _bleio.adapter:
-            return _bleio.adapter
-        self._name = "TODO"
+            raise RuntimeError("Use the singleton _bleio.adapter")
+        self._name = os.uname().nodename
         # Unbounded FIFO for scan results
         self._scan_queue = None
+        self._scan_thread = None
         self._scanning_in_progress = False
+        self._connections = []
 
     @property
     def enabled(self) -> bool:
-        pass  # TODO
+        return self._enabled
 
     @enabled.setter
     def enabled(self, value: bool):
-        pass  # TODO
+        self._enabled = value
 
     @property
     def address(self) -> _bleio.Address:
-        self.enabled = True
-        # TODO bleak address as _bleio.Address()
+        # bleak has no API for the address yet.
+        return None
 
     @property
     def name(self) -> str:
@@ -68,7 +71,6 @@ class Adapter:
     @name.setter
     def name(self, value: str):
         self._name = value
-        # TODO
 
     def start_advertising(
         self,
@@ -78,13 +80,11 @@ class Adapter:
         connectable: bool = True,
         interval: float = 0.1
     ) -> None:
-        # TODO
-        pass
+        raise NotImplementedError("Advertising not implemented")
 
     def stop_advertising(self) -> None:
         """Stop sending advertising packets."""
-        # TODO
-
+        raise NotImplementedError("Advertising not implemented")
 
     def start_scan(
         self,
@@ -135,8 +135,9 @@ class Adapter:
             if scan_entry is None:
                 # Finish iterator when sentinel end value is received.
                 return
-            else:
-                yield scan_entry
+            if scan_entry.rssi < minimum_rssi:
+                continue
+            yield scan_entry
 
     def stop_scan(self) -> None:
         self._scanning_in_progress = False
@@ -147,10 +148,10 @@ class Adapter:
 
     def _next_from_queue(self) -> Any:
         """Read next item from scan entry queue. When done, clean up and return None."""
-        q = self._scan_queue
-        scan_entry = q.sync_q.get()
+        queue = self._scan_queue
+        scan_entry = queue.sync_q.get()
         # Tell producer we read the entry. This allows clean shutdown when done.
-        q.sync_q.task_done()
+        queue.sync_q.task_done()
 
         # When sentinel end value is received,
         # Wait for async thread to finish, and then discard queue.
@@ -159,7 +160,6 @@ class Adapter:
             self._scan_queue = None
 
         return scan_entry
-
 
     def _start_scan_async(self, timeout):
         """Run the async part of start_scan()."""
@@ -173,7 +173,7 @@ class Adapter:
         Repeat until timeout period has elapsed, or if timeout is None,
         until stop_scan is called()
         """
-        q = self._scan_queue = janus.Queue()
+        queue = self._scan_queue = janus.Queue()
 
         # If timeout is forever, do it in chunks.
 
@@ -182,44 +182,63 @@ class Adapter:
         # unlike _bleio.start_scan(). So scan in short increments to emulate
         # returning intermediate results.
 
+        # Some bleak backends provide a callback for each scan result,
+        # but corebluetooth (MacOS) does not, as of this writing,
+        # so we can't use the callback mechanism to add to the queue
+        # when received.
+
         start = time.time()
         bleak_timeout = min(timeout, 0.25)
 
         while self._scanning_in_progress:
-            devices = await discover(timeout=bleak_timeout)
+            async with BleakScanner() as scanner:
+                await asyncio.sleep(bleak_timeout)
+                devices = await scanner.get_discovered_devices()
             for device in devices:
                 # Convert bleak scan result to a ScanEntry and save it.
                 if device is not None:
                     # TODO: filter results
-                    await q.async_q.put(_bleio.ScanEntry(device))
+                    await queue.async_q.put(_bleio.ScanEntry(device))
             if timeout is not None and time.time() - start > timeout:
                 # Quit when timeout period has elapsed.
                 break
 
         # Finished scanning.
         # Put sentinel end iteration value on queue.
-        await q.async_q.put(None)
+        await queue.async_q.put(None)
 
         # Wait for queue to be emptied.
-        await q.async_q.join()
-        q.close()
-        await q.wait_closed()
-
+        await queue.async_q.join()
+        queue.close()
+        await queue.wait_closed()
 
     @property
     def connected(self):
-        # TODO
-        return False
+        return bool(self._connections)
 
     @property
     def connections(self) -> Iterable:
-        # TODO
-        return ()
+        return tuple(self._connections)
 
-    def connect(self, address: _bleio.Address, *, timeout: Union[float, int]) -> None:
-        # TODO
-        pass
+    def connect(self, address: _bleio.Address, *, timeout: float) -> None:
+        return _bleio.call_async(self._connect_async(address, timeout=timeout))
+
+    async def _connect_async(self, address: _bleio.Address, *, timeout: float) -> None:
+        client = BleakClient(address)
+        try:
+            asyncio.wait_for(client.connect(), timeout)
+        except asyncio.TimeoutError:
+            raise _bleio.BluetoothError("Failed to connect: timeout")
+
+        self._connections.append(_bleio.Connection.from_bleak_client(address, client))
+
+    def delete_connection(self, connection: _bleio.Connection) -> None:
+        """Remove the specified connection of the list of connections held by the adapter.
+        (Blinka _bleio only).
+        """
+        self._connections.remove(connection)
 
     def erase_bonding(self) -> None:
-        # TODO
-        pass
+        raise NotImplementedError(
+            "Use the host computer's BLE comamnds to reset bonding infomration"
+        )

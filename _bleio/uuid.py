@@ -28,34 +28,54 @@ _bleio implementation for Adafruit_Blinka_bleio
 
 import re
 from typing import Any, Union
-buf = Union[bytes, bytearray, memoryview]
+
+Buf = Union[bytes, bytearray, memoryview]
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 
-_UUID_RE = re.compile(r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
+_UUID_RE = re.compile(
+    r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
+)
+
 
 class UUID:
-    def __init__(self, uuid: Union[int, buf, str]):
+    def __init__(self, uuid: Union[int, Buf, str]):
         if isinstance(uuid, int):
-            if not (0 <= uuid <= 0xffff):
+            if not 0 <= uuid <= 0xFFFF:
                 raise ValueError("UUID integer value must be 0-0xffff")
             self._size = 16
             self._uuid16 = uuid
             # Put into "0000xxxx-0000-1000-8000-00805F9B34FB"
-            self._uuid128 = (0xFB, 0x34, 0x9B, 0x5F, 0x80, 0x00, # 00805F9B34FB
-                             0x00, 0x80, # 8000
-                             0x00, 0x10, # 1000
-                             0x00, 0x00, # 0000
-                             uuid & 0xff, (uuid >> 8) & 0xff, # xxxx
-                             0x00, 0x00) # 0000
+            self._uuid128 = (
+                0xFB,
+                0x34,
+                0x9B,
+                0x5F,
+                0x80,
+                0x00,  # 00805F9B34FB
+                0x00,
+                0x80,  # 8000
+                0x00,
+                0x10,  # 1000
+                0x00,
+                0x00,  # 0000
+                uuid & 0xFF,
+                (uuid >> 8) & 0xFF,  # xxxx
+                0x00,
+                0x00,
+            )  # 0000
         elif isinstance(uuid, str):
             if _UUID_RE.match(uuid):
                 self._size = 128
                 uuid = uuid.replace("-", "")
-                self._uuid128 = bytes(int(uuid[i:i+2], 16) for i in range(30, -1, -2))
+                self._uuid128 = bytes(
+                    int(uuid[i : i + 2], 16) for i in range(30, -1, -2)
+                )
             else:
-                raise ValueError("UUID string not 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'")
+                raise ValueError(
+                    "UUID string not 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'"
+                )
         else:
             try:
                 uuid = memoryview(uuid)
@@ -64,6 +84,22 @@ class UUID:
             if len(uuid) != 16:
                 raise ValueError("Byte buffer must be 16 bytes")
             self._uuid128 = bytes(uuid)
+
+        self._bleak_uuid = None
+
+    @classmethod
+    def from_bleak(cls, bleak_uuid: str) -> "UUID":
+        """Bleak UUIDs are all strings.
+        TODO: or are they also uuid.UUID's?
+        """
+        uuid = UUID(bleak_uuid)
+        uuid._bleak_uuid = bleak_uuid  # pylint: disable=protected-access
+        return uuid
+
+    @property
+    def bleak_uuid(self):
+        """Bleak UUID (str or in some cases, uuid.UUID)"""
+        return self._bleak_uuid
 
     @property
     def uuid16(self) -> int:
@@ -86,11 +122,24 @@ class UUID:
         else:
             buffer[offset:byte_size] = self.uuid128
 
+    _BASE_STANDARD_UUID = (
+        b"\xFB\x34\x9B\x5F\x80\x00\x00\x80\x00\x10\x00\x00\x00\x00\x00\x00"
+    )
+
+    @property
+    def is_standard_uuid(self):
+        """True if this is a standard 16-bit UUID (0000xxxx-0000-1000-8000-00805F9B34FB)
+        even if it's 128-bit."""
+        return self.size == 16 or (
+            self._uuid128[0:12] == self._BASE_STANDARD_UUID[0:12]
+            and self._uuid128[14:] == self._BASE_STANDARD_UUID[14:]
+        )
+
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, UUID):
             if self.size == 16 and other.size == 16:
                 return self.uuid16 == other.uuid16
-            if self.size == 128 and other.size ==128:
+            if self.size == 128 and other.size == 128:
                 return self.uuid128 == other.uuid128
 
         return False
@@ -98,9 +147,15 @@ class UUID:
     def __str__(self) -> str:
         if self.size == 16:
             return "UUID({:#04x})".format(self.uuid16)
-        else:
-            return ('UUID("{:02x}{:02x}{:02x}{:02x}-'
-                    "{:02x}{:02x}-"
-                    "{:02x}{:02x}-"
-                    "{:02x}{:02x}-"
-                    '{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}")').format(*reversed(self.uuid128))
+        return (
+            'UUID("{:02x}{:02x}{:02x}{:02x}-'
+            "{:02x}{:02x}-"
+            "{:02x}{:02x}-"
+            "{:02x}{:02x}-"
+            '{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}")'
+        ).format(*reversed(self.uuid128))
+
+
+UUID.BASE_STANDARD_UUID = UUID("00000000-0000-1000-8000-00805F9B34FB")
+"""16 bit xxyy UUIDs are shorthand for the
+base 128-bit UUID 0000yyxx-0000-1000-8000-00805F9B34FB."""

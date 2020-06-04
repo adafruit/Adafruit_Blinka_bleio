@@ -1,0 +1,114 @@
+# The MIT License (MIT)
+#
+# Copyright (c) 2020 Dan Halbert for Adafruit Industries LLC
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+"""
+
+_bleio implementation for Adafruit_Blinka_bleio
+
+* Author(s): Dan Halbert for Adafruit Industries
+"""
+
+from typing import Iterator, Tuple, Union
+
+
+import asyncio
+import os
+import time
+
+# janus.Queue is thread-safe and can be used from both sync and async code.
+import janus
+from bleak.backends.service import BleakGATTService
+
+from _bleio import Characteristic, UUID
+
+
+class Service:
+    """Stores information about a BLE service and its characteristics."""
+
+    def __init__(
+        self, uuid: UUID, *, secondary: bool = False, remote: bool = False,
+    ):
+        """Create a new Service identified by the specified UUID. It can be accessed by all
+        connections. This is known as a Service server. Client Service objects are created via
+        `Connection.discover_remote_services`.
+
+        To mark the Service as secondary, pass `True` as :py:data:`secondary`.
+
+        :param UUID uuid: The uuid of the service
+        :param bool secondary: If the service is a secondary one
+
+        :return: the new Service
+        """
+        self._uuid = uuid
+        self._secondary = secondary
+        self._remote = remote
+        self._characteristics = () if characteristics is None else characteristics
+        self._connection = None
+        self._characteristics = ()
+
+    @classmethod
+    def from_bleak(
+        cls, connection: 'Connection', bleak_gatt_service: BleakGATTService
+    ) -> 'Service':
+        self._connection = connection
+        self._uuid = UUID(bleak_gatt_service.uuid)
+        self._characteristics = tuple(
+            Characteristic.from_bleak(bleak_characteristic)
+            for bleak_characteristic in bleak_gatt_service.characteristics
+        )
+        service = cls(
+            uuid, remote=True, characteristics=characteristics, connection=connection
+        )
+        service._bleak_gatt_service = bleak_gatt_service
+        return service
+
+    @property
+    def bleak_service(self):
+        """BleakGATTService object"""
+        return self._bleak_gatt_service
+
+    @property
+    def characteristics(self) -> Tuple[Characteristic]:
+        """A tuple of :py:class:`Characteristic` designating the characteristics that are offered by
+        this service. (read-only)"""
+        return self._characteristics
+
+    @property
+    def remote(self) -> bool:
+        """True if this is a service provided by a remote device. (read-only)"""
+        return self._remote
+
+    @property
+    def secondary(self) -> bool:
+        """True if this is a secondary service. (read-only)"""
+        return self._secondary
+
+    @property
+    def uuid(self) -> Union[UUID, None]:
+        """The UUID of this service. (read-only)
+        return self._uuid
+
+        Will be ``None`` if the 128-bit UUID for this service is not known."""
+
+    def __str__(self) -> str:
+        if self.uuid:
+            return f"Service({self.uuid})"
+        return "<Service with unregistered UUID>"

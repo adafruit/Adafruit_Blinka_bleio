@@ -35,6 +35,8 @@ __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 
 
 from enum import Enum
+
+
 class Attribute(Enum):
     NO_ACCESS = 0x00
     OPEN = 0x11

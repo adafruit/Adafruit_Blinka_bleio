@@ -26,26 +26,22 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 
-from typing import Any
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 
 
-class BluetoothError:
-    def __init__(self, Exception: Any):
-        """Catch-all exception for Bluetooth related errors."""
-        ...
-class ConnectionError:
-    def __init__(self, BluetoothError: Any):
-        """Raised when a connection is unavailable."""
-        ...
+class BluetoothError(Exception):
+    """Catch-all exception for Bluetooth related errors."""
 
-class RoleError:
-    def __init__(self, BluetoothError: Any):
-        """Raised when a resource is used as the mismatched role. For example, if a local CCCD is
-        attempted to be set but it can only be set when remote."""
-        ...
 
-class SecurityError:
-    def __init__(self, BluetoothError: Any):
-        """Raised when a security related error occurs."""
+class ConnectionError(BluetoothError):  # pylint: disable=redefined-builtin
+    """Raised when a connection is unavailable."""
+
+
+class RoleError(BluetoothError):
+    """Raised when a resource is used as the mismatched role. For example, if a local CCCD is
+    attempted to be set but it can only be set when remote."""
+
+
+class SecurityError(BluetoothError):
+    """Raised when a security related error occurs."""
