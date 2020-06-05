@@ -26,28 +26,28 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 
-from typing import Any, Iterable, Union
+from typing import Iterable, Union
 
 import asyncio
 import os
-from threading import Thread
 import time
 
-# janus.Queue is thread-safe and can be used from both sync and async code.
-import janus
 from bleak import BleakClient, BleakScanner
 
-import _bleio
+from _bleio import adapter, call_async, Address, BluetoothError, Connection, ScanEntry
+
+Buf = Union[bytes, bytearray, memoryview]
 
 
 class Adapter:
+    # Do blocking scans in chunks of this interval.
+    _SCAN_INTERVAL = 0.25
+
     def __init__(self):
-        if _bleio.adapter:
+        if adapter:
             raise RuntimeError("Use the singleton _bleio.adapter")
         self._name = os.uname().nodename
         # Unbounded FIFO for scan results
-        self._scan_queue = None
-        self._scan_thread = None
         self._scanning_in_progress = False
         self._connections = []
 
@@ -60,7 +60,7 @@ class Adapter:
         self._enabled = value
 
     @property
-    def address(self) -> _bleio.Address:
+    def address(self) -> Address:
         # bleak has no API for the address yet.
         return None
 
@@ -74,9 +74,9 @@ class Adapter:
 
     def start_advertising(
         self,
-        data: Union[bytes, bytearray],
+        data: Buf,
         *,
-        scan_response: Union[bytes, bytearray] = None,
+        scan_response: Buf = None,
         connectable: bool = True,
         interval: float = 0.1
     ) -> None:
@@ -88,7 +88,7 @@ class Adapter:
 
     def start_scan(
         self,
-        prefixes: Union[bytes, bytearray] = b"",
+        prefixes: Buf = b"",
         *,
         buffer_size: int = 512,
         extended: bool = False,
@@ -119,98 +119,31 @@ class Adapter:
         :returns: an iterable of `_bleio.ScanEntry` objects
         :rtype: iterable"""
 
+        scanner = BleakScanner()
         self._scanning_in_progress = True
 
-        # Run the scanner in a separate thread
-        self._scan_thread = Thread(target=self._start_scan_async, args=(timeout,))
-        self._scan_thread.start()
+        start = time.time()
+        while self._scanning_in_progress and time.time() - start < timeout:
+            for device in call_async(self._scan_for_interval(scanner, self._SCAN_INTERVAL)):
+                if not device or device.rssi < minimum_rssi:
+                    continue
+                scan_entry = ScanEntry(device)
+                if not scan_entry.matches(prefixes, all=False):
+                    continue
+                yield scan_entry
 
-        # Wait for queue creation, which must be done
-        # in the async thread so it gets the right event loop.
-        while not self._scan_queue:
-            pass
-
-        while True:
-            scan_entry = self._next_from_queue()
-            if scan_entry is None:
-                # Finish iterator when sentinel end value is received.
-                return
-            if scan_entry.rssi < minimum_rssi:
-                continue
-            yield scan_entry
+    async def _scan_for_interval(self, scanner, interval: float) -> Iterable[ScanEntry]:
+        """Scan advertisements for the given interval and return ScanEntry objects
+        for all advertisements heard.
+        """
+        await scanner.start()
+        await asyncio.sleep(interval)
+        await scanner.stop()
+        return await scanner.get_discovered_devices()
 
     def stop_scan(self) -> None:
+        """Stop scanning before timeout may have occurred."""
         self._scanning_in_progress = False
-        # Drain the queue of any unread entries.
-        # The last entry will be a None.
-        while self._next_from_queue() is not None:
-            pass
-
-    def _next_from_queue(self) -> Any:
-        """Read next item from scan entry queue. When done, clean up and return None."""
-        queue = self._scan_queue
-        scan_entry = queue.sync_q.get()
-        # Tell producer we read the entry. This allows clean shutdown when done.
-        queue.sync_q.task_done()
-
-        # When sentinel end value is received,
-        # Wait for async thread to finish, and then discard queue.
-        if scan_entry is None:
-            self._scan_thread.join()
-            self._scan_queue = None
-
-        return scan_entry
-
-    def _start_scan_async(self, timeout):
-        """Run the async part of start_scan()."""
-        # Creates event loop and cleans it up when done.
-        asyncio.run(self._scan(timeout), debug=True)
-        self._scanning_in_progress = False
-
-    async def _scan(self, timeout: Union[float, None]) -> None:
-        """
-        Run as a task to scan and add ScanEntry objects to the queue.
-        Repeat until timeout period has elapsed, or if timeout is None,
-        until stop_scan is called()
-        """
-        queue = self._scan_queue = janus.Queue()
-
-        # If timeout is forever, do it in chunks.
-
-        # The bleak discover(timeout) is the total time to spend scanning.
-        # No intermediate results are returned during the timeout period,
-        # unlike _bleio.start_scan(). So scan in short increments to emulate
-        # returning intermediate results.
-
-        # Some bleak backends provide a callback for each scan result,
-        # but corebluetooth (MacOS) does not, as of this writing,
-        # so we can't use the callback mechanism to add to the queue
-        # when received.
-
-        start = time.time()
-        bleak_timeout = min(timeout, 0.25)
-
-        while self._scanning_in_progress:
-            async with BleakScanner() as scanner:
-                await asyncio.sleep(bleak_timeout)
-                devices = await scanner.get_discovered_devices()
-            for device in devices:
-                # Convert bleak scan result to a ScanEntry and save it.
-                if device is not None:
-                    # TODO: filter results
-                    await queue.async_q.put(_bleio.ScanEntry(device))
-            if timeout is not None and time.time() - start > timeout:
-                # Quit when timeout period has elapsed.
-                break
-
-        # Finished scanning.
-        # Put sentinel end iteration value on queue.
-        await queue.async_q.put(None)
-
-        # Wait for queue to be emptied.
-        await queue.async_q.join()
-        queue.close()
-        await queue.wait_closed()
 
     @property
     def connected(self):
@@ -220,19 +153,19 @@ class Adapter:
     def connections(self) -> Iterable:
         return tuple(self._connections)
 
-    def connect(self, address: _bleio.Address, *, timeout: float) -> None:
-        return _bleio.call_async(self._connect_async(address, timeout=timeout))
+    def connect(self, address: Address, *, timeout: float) -> None:
+        return call_async(self._connect_async(address, timeout=timeout))
 
-    async def _connect_async(self, address: _bleio.Address, *, timeout: float) -> None:
-        client = BleakClient(address)
+    async def _connect_async(self, address: Address, *, timeout: float) -> None:
+        client = BleakClient(address.bleak_address)
         try:
-            asyncio.wait_for(client.connect(), timeout)
+            await asyncio.wait_for(client.connect(), timeout)
         except asyncio.TimeoutError:
-            raise _bleio.BluetoothError("Failed to connect: timeout")
+            raise BluetoothError("Failed to connect: timeout")
 
-        self._connections.append(_bleio.Connection.from_bleak_client(address, client))
+        self._connections.append(Connection.from_bleak(address, client))
 
-    def delete_connection(self, connection: _bleio.Connection) -> None:
+    def delete_connection(self, connection: Connection) -> None:
         """Remove the specified connection of the list of connections held by the adapter.
         (Blinka _bleio only).
         """

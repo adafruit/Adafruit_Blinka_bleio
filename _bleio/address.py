@@ -62,6 +62,10 @@ class Address:
         self._type = address_type
 
     @property
+    def bleak_address(self) -> str:
+        return self.string
+
+    @property
     def string(self) -> str:
         """Original string, or if not given, address in "xx:xx:xx:xx:xx:xx" format."""
         if not self._string:

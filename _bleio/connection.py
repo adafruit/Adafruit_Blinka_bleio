@@ -61,14 +61,19 @@ class Connection:
         created by a peer, read the `Adapter.connections` property.
 
         :param Address address: Address of device to connect to
-        :param BleakClient bleak_client: BleakClient used to make connection. (Blinka _bleio only)
         """
-        self._bleak_client = bleak_client
+        self._address = address
 
     @classmethod
     def from_bleak(cls, address: Address, bleak_client: BleakClient) -> 'Connection':
-        connection = Connection(address)
-        self._bleak_client = bleak_client
+        """Create a Connection from bleak information.
+
+        :param Address address: Address of device to connect to
+        :param BleakClient bleak_client: BleakClient used to make connection. (Blinka _bleio only)
+        """
+        conn = Connection(address)
+        conn._bleak_client = bleak_client
+        return conn
 
     @property
     def bleak_client(self):

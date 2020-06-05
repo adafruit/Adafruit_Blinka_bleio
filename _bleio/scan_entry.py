@@ -31,12 +31,13 @@ from _bleio import Address, UUID
 
 class ScanEntry:
     def __init__(self, device):
-        # TODO break down device
         self._device = device
         self._address = Address(string=device.address)
         self._data_dict = self._build_data_dict()
 
-    def matches(self, prefixes, any_: bool = True) -> bool:
+    def matches(
+        self, prefixes, all: bool = True  # pylint: disable=redefined-builtin
+    ) -> bool:
         # We don't have the original advertisement bytes, so we can't
         # do a perfect job of matching.
         if len(prefixes) == 0:
@@ -46,14 +47,16 @@ class ScanEntry:
             prefix_matched = False
             for field in fields:
                 if field.startswith(prefix):
-                    if any_:
+                    if not all:
                         return True
                     prefix_matched = True
-            if not prefix_matched:
+                    break
+            # if all, this prefix must match at least one field
+            if not prefix_matched and all:
                 return False
 
-        # All prefixes matched some field.
-        return True
+        # All prefixes matched some field (if all), or none did (if any).
+        return all
 
     def __repr__(self):
         return str(self)
@@ -106,10 +109,16 @@ class ScanEntry:
         return self._data_dict
 
     def _build_data_dict(self):
-        data = {}
+        data_dict = {}
         for key, value in self._device.metadata.items():
             if key == "manufacturer_data":
-                data[0xFF] = value
+                # The manufacturer data value is a dictionary.
+                # Re-concatenate it into bytes
+                all_mfr_data = bytearray()
+                for mfr_id, mfr_data in value.items():
+                    all_mfr_data.extend(mfr_id.to_bytes(2, byteorder="big"))
+                    all_mfr_data.extend(mfr_data)
+                data_dict[0xFF] = all_mfr_data
             elif key == "uuids":
                 uuids16 = bytearray()
                 uuids128 = bytearray()
@@ -117,18 +126,18 @@ class ScanEntry:
                     bleio_uuid = UUID(uuid)
                     # If this is a Standard UUID in 128-bit form, convert it to a 16-bit UUID.
                     if bleio_uuid.is_standard_uuid:
-                        uuids16.extend(bleio_uuid.uuid128[12:13])
+                        uuids16.extend(bleio_uuid.uuid128[12:14])
                     else:
                         uuids128.extend(bleio_uuid.uuid128)
 
             if uuids16:
                 # Complete list of 16-bit UUIDs.
-                data[0x03] = uuids16
+                data_dict[0x03] = uuids16
             if uuids128:
                 # Complete list of 128-bit UUIDs
-                data[0x07] = uuids128
+                data_dict[0x07] = uuids128
 
-        return data
+        return data_dict
 
     @staticmethod
     def _separate_prefixes(prefixes_bytes):
@@ -137,5 +146,8 @@ class ScanEntry:
         prefixes = []
         while i < len(prefixes_bytes):
             length = prefixes_bytes[i]
-            prefixes.append(prefixes_bytes[i + 1 : i + length])
-            i += length + 1
+            i += 1
+            prefixes.append(prefixes_bytes[i : i + length])
+            i += length
+
+        return prefixes
