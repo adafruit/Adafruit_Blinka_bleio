@@ -124,12 +124,15 @@ class Adapter:
 
         start = time.time()
         while self._scanning_in_progress and time.time() - start < timeout:
-            for device in call_async(self._scan_for_interval(scanner, self._SCAN_INTERVAL)):
+            for device in call_async(
+                self._scan_for_interval(scanner, self._SCAN_INTERVAL)
+            ):
                 if not device or device.rssi < minimum_rssi:
                     continue
                 scan_entry = ScanEntry(device)
                 if not scan_entry.matches(prefixes, all=False):
                     continue
+                print(scan_entry)
                 yield scan_entry
 
     async def _scan_for_interval(self, scanner, interval: float) -> Iterable[ScanEntry]:
@@ -163,7 +166,9 @@ class Adapter:
         except asyncio.TimeoutError:
             raise BluetoothError("Failed to connect: timeout")
 
-        self._connections.append(Connection.from_bleak(address, client))
+        connection = Connection.from_bleak(address, client)
+        self._connections.append(connection)
+        return connection
 
     def delete_connection(self, connection: Connection) -> None:
         """Remove the specified connection of the list of connections held by the adapter.

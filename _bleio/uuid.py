@@ -35,11 +35,21 @@ __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 
 _UUID_RE = re.compile(
-    r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    flags=re.IGNORECASE
 )
 
+_STANDARD_UUID_RE = re.compile(
+    r"0000....-0000-1000-8000-00805f9b34fb",
+    flags=re.IGNORECASE
+)
+
+_BASE_STANDARD_UUID = (
+    b"\xFB\x34\x9B\x5F\x80\x00\x00\x80\x00\x10\x00\x00\x00\x00\x00\x00"
+)
 
 class UUID:
+
     def __init__(self, uuid: Union[int, Buf, str]):
         if isinstance(uuid, int):
             if not 0 <= uuid <= 0xFFFF:
@@ -47,7 +57,7 @@ class UUID:
             self._size = 16
             self._uuid16 = uuid
             # Put into "0000xxxx-0000-1000-8000-00805F9B34FB"
-            self._uuid128 = (
+            self._uuid128 = bytes((
                 0xFB,
                 0x34,
                 0x9B,
@@ -64,10 +74,10 @@ class UUID:
                 (uuid >> 8) & 0xFF,  # xxxx
                 0x00,
                 0x00,
-            )  # 0000
+            ))  # 0000
         elif isinstance(uuid, str):
             if _UUID_RE.match(uuid):
-                self._size = 128
+                self._size = 16 if _STANDARD_UUID_RE.match(uuid) else 128
                 uuid = uuid.replace("-", "")
                 self._uuid128 = bytes(
                     int(uuid[i : i + 2], 16) for i in range(30, -1, -2)
@@ -83,6 +93,7 @@ class UUID:
                 raise ValueError("UUID value is not str, int or byte buffer")
             if len(uuid) != 16:
                 raise ValueError("Byte buffer must be 16 bytes")
+            self._size = 128
             self._uuid128 = bytes(uuid)
 
         self._bleak_uuid = None
@@ -99,10 +110,14 @@ class UUID:
     @property
     def bleak_uuid(self):
         """Bleak UUID (str or in some cases, uuid.UUID)"""
+        if not self._bleak_uuid:
+            self._bleak_uuid = str(self)
         return self._bleak_uuid
 
     @property
     def uuid16(self) -> int:
+        if self.size == 128:
+            raise ValueError("This is a 128-bit UUID")
         return (self._uuid128[13] << 8) | self._uuid128[12]
 
     @property
@@ -122,17 +137,13 @@ class UUID:
         else:
             buffer[offset:byte_size] = self.uuid128
 
-    _BASE_STANDARD_UUID = (
-        b"\xFB\x34\x9B\x5F\x80\x00\x00\x80\x00\x10\x00\x00\x00\x00\x00\x00"
-    )
-
     @property
     def is_standard_uuid(self):
         """True if this is a standard 16-bit UUID (0000xxxx-0000-1000-8000-00805F9B34FB)
         even if it's 128-bit."""
         return self.size == 16 or (
-            self._uuid128[0:12] == self._BASE_STANDARD_UUID[0:12]
-            and self._uuid128[14:] == self._BASE_STANDARD_UUID[14:]
+            self._uuid128[0:12] == _BASE_STANDARD_UUID[0:12]
+            and self._uuid128[14:] == _BASE_STANDARD_UUID[14:]
         )
 
     def __eq__(self, other: Any) -> bool:
@@ -144,16 +155,24 @@ class UUID:
 
         return False
 
+    def __hash__(self):
+        if self.size == 16:
+            return hash(self.uuid16)
+        return hash(self.uuid128)
+
     def __str__(self) -> str:
+        return (
+            "{:02x}{:02x}{:02x}{:02x}-"
+            "{:02x}{:02x}-"
+            "{:02x}{:02x}-"
+            "{:02x}{:02x}-"
+            "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}"
+        ).format(*reversed(self.uuid128))
+
+    def __repr__(self) -> str:
         if self.size == 16:
             return "UUID({:#04x})".format(self.uuid16)
-        return (
-            'UUID("{:02x}{:02x}{:02x}{:02x}-'
-            "{:02x}{:02x}-"
-            "{:02x}{:02x}-"
-            "{:02x}{:02x}-"
-            '{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}")'
-        ).format(*reversed(self.uuid128))
+        return "UUID({})".format(str(self))
 
 
 UUID.BASE_STANDARD_UUID = UUID("00000000-0000-1000-8000-00805F9B34FB")

@@ -60,22 +60,18 @@ class Service:
         self._uuid = uuid
         self._secondary = secondary
         self._remote = remote
-        self._characteristics = () if characteristics is None else characteristics
         self._connection = None
         self._characteristics = ()
 
     @classmethod
     def from_bleak(
-        cls, connection: 'Connection', bleak_gatt_service: BleakGATTService
-    ) -> 'Service':
-        self._connection = connection
-        self._uuid = UUID(bleak_gatt_service.uuid)
-        self._characteristics = tuple(
-            Characteristic.from_bleak(bleak_characteristic)
+        cls, connection: "Connection", bleak_gatt_service: BleakGATTService
+    ) -> "Service":
+        service = cls(UUID(bleak_gatt_service.uuid), remote=True)
+        service._connection = connection
+        service._characteristics = tuple(
+            Characteristic.from_bleak(service, bleak_characteristic)
             for bleak_characteristic in bleak_gatt_service.characteristics
-        )
-        service = cls(
-            uuid, remote=True, characteristics=characteristics, connection=connection
         )
         service._bleak_gatt_service = bleak_gatt_service
         return service
@@ -104,11 +100,16 @@ class Service:
     @property
     def uuid(self) -> Union[UUID, None]:
         """The UUID of this service. (read-only)
+        Will be ``None`` if the 128-bit UUID for this service is not known.
+        """
         return self._uuid
 
-        Will be ``None`` if the 128-bit UUID for this service is not known."""
+    @property
+    def connection(self) -> 'Connection':
+        """Connection associated with this service, if any."""
+        return self._connection
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         if self.uuid:
-            return f"Service({self.uuid})"
-        return "<Service with unregistered UUID>"
+            return f"<Service: {self.uuid}>"
+        return "<Service: uuid is None>"

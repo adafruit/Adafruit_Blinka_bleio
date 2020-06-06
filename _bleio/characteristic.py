@@ -29,7 +29,10 @@ from typing import Any, Tuple, Union
 
 from _bleio import Attribute, UUID, call_async
 
-from bleak.backends.characteristic import BleakGATTCharacteristic
+from bleak.backends.characteristic import (
+    BleakGATTCharacteristic,
+    GattCharacteristicsFlags,
+)
 
 Buf = Union[bytes, bytearray, memoryview]
 
@@ -77,11 +80,12 @@ class Characteristic:
         self._service = None
         self._descriptors = ()
         self._bleak_gatt_characteristic = None
+        self._bleak_callback = None
 
     @classmethod
     def add_to_service(
         cls,
-        service: 'Service',
+        service: "Service",
         uuid: UUID,
         *,
         properties: int = 0,
@@ -130,11 +134,11 @@ class Characteristic:
 
     @classmethod
     def from_bleak(
-        cls, service: 'Service', bleak_characteristic: BleakGATTCharacteristic
+        cls, service: "Service", bleak_characteristic: BleakGATTCharacteristic
     ):
         properties = 0
         for prop in bleak_characteristic.properties:
-            properties |= prop
+            properties |= GattCharacteristicsFlags[prop.replace("-", "_")].value
         charac = Characteristic.add_to_service(
             service=service,
             uuid=UUID(bleak_characteristic.uuid),
@@ -170,7 +174,7 @@ class Characteristic:
     def value(self) -> bytes:
         """The value of this characteristic."""
         return call_async(
-            self.service.connection.bleak_client.read_gatt_char(self.uuid.string)
+            self.service.connection.bleak_client.read_gatt_char(self.uuid.bleak_uuid)
         )
 
     @value.setter
@@ -182,12 +186,12 @@ class Characteristic:
         )
 
     @property
-    def descriptors(self) -> Tuple['Descriptor']:
+    def descriptors(self) -> Tuple["Descriptor"]:
         """A tuple of :py:class:~`Descriptor` that describe this characteristic. (read-only)"""
         return self._descriptors
 
     @property
-    def service(self) -> 'Service':
+    def service(self) -> "Service":
         """The Service this Characteristic is a part of."""
         return self._service
 
@@ -198,11 +202,11 @@ class Characteristic:
         :param float indicate: True if Characteristic should receive indications of remote writes
         """
         if indicate:
-            raise NotImplementedError("Indicate not available")
+            raise NotImplementedError("Indicate not available in bleak")
 
         if notify:
             call_async(
-                self._service.bleak_client.start_notify(
+                self._service.connection.bleak_client.start_notify(
                     self._bleak_gatt_characteristic.uuid, self._bleak_callback
                 )
             )
@@ -212,3 +216,8 @@ class Characteristic:
                     self._bleak_gatt_characteristic.uuid
                 )
             )
+
+    def __repr__(self) -> str:
+        if self.uuid:
+            return f"<Characteristic: {self.uuid}>"
+        return "<Characteristic: uuid is None>"

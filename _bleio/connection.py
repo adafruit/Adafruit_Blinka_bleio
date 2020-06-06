@@ -65,7 +65,7 @@ class Connection:
         self._address = address
 
     @classmethod
-    def from_bleak(cls, address: Address, bleak_client: BleakClient) -> 'Connection':
+    def from_bleak(cls, address: Address, bleak_client: BleakClient) -> "Connection":
         """Create a Connection from bleak information.
 
         :param Address address: Address of device to connect to
@@ -94,7 +94,7 @@ class Connection:
 
     def discover_remote_services(
         self, service_uuids_whitelist: Iterable = None
-    ) -> Tuple['Service']:
+    ) -> Tuple["Service"]:
         return call_async(self._discover_remote_services_async(service_uuids_whitelist))
 
     async def _discover_remote_services_async(
@@ -121,7 +121,18 @@ class Connection:
           registered for use. (This restriction may be lifted in the future.)
 
         :return: A tuple of `_bleio.Service` objects provided by the remote peripheral."""
-        return tuple(Service(s) async for s in self._bleak_client.get_services())
+        bleak_service_uuids_whitelist = ()
+        if service_uuids_whitelist:
+            bleak_service_uuids_whitelist = tuple(
+                uuid.bleak_uuid for uuid in service_uuids_whitelist
+            )
+
+        bleak_services = await self._bleak_client.get_services()
+        return tuple(
+            Service.from_bleak(self, bleak_service)
+            for bleak_service in bleak_services
+            if bleak_service.uuid.lower() in bleak_service_uuids_whitelist
+        )
 
     @property
     def connected(self) -> bool:
@@ -159,3 +170,6 @@ class Connection:
         But for a regular characteristic read or write, may be sent in multiple packets,
         so this limit does not apply."""
         raise NotImplementedError("max_packet_length not available")
+
+    def __repr__(self):
+        return "<Connection: {}".format(self.address)
