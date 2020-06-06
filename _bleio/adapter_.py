@@ -29,7 +29,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 from typing import Iterable, Union
 
 import asyncio
-import os
+import platform
 import time
 
 from bleak import BleakClient, BleakScanner
@@ -46,7 +46,8 @@ class Adapter:
     def __init__(self):
         if adapter:
             raise RuntimeError("Use the singleton _bleio.adapter")
-        self._name = os.uname().nodename
+
+        self._name = platform.node()
         # Unbounded FIFO for scan results
         self._scanning_in_progress = False
         self._connections = []
