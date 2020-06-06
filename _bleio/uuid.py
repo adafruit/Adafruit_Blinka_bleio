@@ -35,21 +35,19 @@ __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 
 _UUID_RE = re.compile(
-    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-    flags=re.IGNORECASE
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", flags=re.IGNORECASE
 )
 
 _STANDARD_UUID_RE = re.compile(
-    r"0000....-0000-1000-8000-00805f9b34fb",
-    flags=re.IGNORECASE
+    r"0000....-0000-1000-8000-00805f9b34fb", flags=re.IGNORECASE
 )
 
 _BASE_STANDARD_UUID = (
     b"\xFB\x34\x9B\x5F\x80\x00\x00\x80\x00\x10\x00\x00\x00\x00\x00\x00"
 )
 
-class UUID:
 
+class UUID:
     def __init__(self, uuid: Union[int, Buf, str]):
         if isinstance(uuid, int):
             if not 0 <= uuid <= 0xFFFF:
@@ -57,24 +55,26 @@ class UUID:
             self._size = 16
             self._uuid16 = uuid
             # Put into "0000xxxx-0000-1000-8000-00805F9B34FB"
-            self._uuid128 = bytes((
-                0xFB,
-                0x34,
-                0x9B,
-                0x5F,
-                0x80,
-                0x00,  # 00805F9B34FB
-                0x00,
-                0x80,  # 8000
-                0x00,
-                0x10,  # 1000
-                0x00,
-                0x00,  # 0000
-                uuid & 0xFF,
-                (uuid >> 8) & 0xFF,  # xxxx
-                0x00,
-                0x00,
-            ))  # 0000
+            self._uuid128 = bytes(
+                (
+                    0xFB,
+                    0x34,
+                    0x9B,
+                    0x5F,
+                    0x80,
+                    0x00,  # 00805F9B34FB
+                    0x00,
+                    0x80,  # 8000
+                    0x00,
+                    0x10,  # 1000
+                    0x00,
+                    0x00,  # 0000
+                    uuid & 0xFF,
+                    (uuid >> 8) & 0xFF,  # xxxx
+                    0x00,
+                    0x00,
+                )
+            )  # 0000
         elif isinstance(uuid, str):
             if _UUID_RE.match(uuid):
                 self._size = 16 if _STANDARD_UUID_RE.match(uuid) else 128

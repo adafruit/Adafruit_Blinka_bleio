@@ -105,7 +105,7 @@ class Service:
         return self._uuid
 
     @property
-    def connection(self) -> 'Connection':
+    def connection(self) -> "Connection":
         """Connection associated with this service, if any."""
         return self._connection
 

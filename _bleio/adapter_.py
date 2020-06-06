@@ -132,7 +132,6 @@ class Adapter:
                 scan_entry = ScanEntry(device)
                 if not scan_entry.matches(prefixes, all=False):
                     continue
-                print(scan_entry)
                 yield scan_entry
 
     async def _scan_for_interval(self, scanner, interval: float) -> Iterable[ScanEntry]:

@@ -26,6 +26,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from typing import Any, Tuple, Union
+import queue
 
 from _bleio import Attribute, UUID, call_async
 
@@ -80,7 +81,7 @@ class Characteristic:
         self._service = None
         self._descriptors = ()
         self._bleak_gatt_characteristic = None
-        self._bleak_callback = None
+        self.notify_queue = None
 
     @classmethod
     def add_to_service(
@@ -147,9 +148,9 @@ class Characteristic:
             write_perm=Attribute.OPEN,
         )
 
-        charac._bleak_gatt_characteristic = (
-            bleak_characteristic  # pylint: disable=protected-access
-        )
+        # pylint: disable=protected-access
+        charac._bleak_gatt_characteristic = bleak_characteristic
+        # pylint: enable=protected-access
         return charac
 
     def bleak_characteristic(self):
@@ -171,8 +172,13 @@ class Characteristic:
         return self._uuid
 
     @property
-    def value(self) -> bytes:
+    def value(self) -> Union[bytes, None]:
         """The value of this characteristic."""
+        if self.notify_queue:
+            try:
+                return self.notify_queue.get_nowait()
+            except queue.Empty:
+                return None
         return call_async(
             self.service.connection.bleak_client.read_gatt_char(self.uuid.bleak_uuid)
         )
@@ -180,8 +186,10 @@ class Characteristic:
     @value.setter
     def value(self, val) -> None:
         call_async(
+            # BlueZ DBus cannot take a bytes here, though it can take a tuple, etc.
+            # So use a bytearray.
             self.service.connection.bleak_client.write_gatt_char(
-                self.uuid.string, val, response=self.properties | Characteristic.WRITE
+                self.uuid.bleak_uuid, bytearray(val), response=self.properties | Characteristic.WRITE
             )
         )
 
@@ -207,7 +215,7 @@ class Characteristic:
         if notify:
             call_async(
                 self._service.connection.bleak_client.start_notify(
-                    self._bleak_gatt_characteristic.uuid, self._bleak_callback
+                    self._bleak_gatt_characteristic.uuid, self._notify_callback,
                 )
             )
         else:
@@ -216,6 +224,13 @@ class Characteristic:
                     self._bleak_gatt_characteristic.uuid
                 )
             )
+
+    def _notify_callback(self, bleak_uuid: str, data: Buf):
+        if self.notify_queue and bleak_uuid == self.uuid.bleak_uuid:
+            if self.notify_queue.full():
+                # Discard oldest data to make room
+                self.notify_queue.get_nowait()
+            self.notify_queue.put_nowait(data)
 
     def __repr__(self) -> str:
         if self.uuid:
