@@ -161,11 +161,10 @@ class Adapter:
 
     async def _connect_async(self, address: Address, *, timeout: float) -> None:
         client = BleakClient(address.bleak_address)
-        try:
-            await asyncio.wait_for(client.connect(), timeout)
-        except asyncio.TimeoutError:
-            raise BluetoothError("Failed to connect: timeout")
-
+        # connect() takes a timeout, but it's a timeout to do a
+        # discover() scan, not an actual connect timeout. So use
+        # the default bleak timeout, which is 2 seconds.
+        await client.connect()
         connection = Connection.from_bleak(address, client)
         self._connections.append(connection)
         return connection
