@@ -22,12 +22,15 @@
 """
 `_bleio`
 """
+from __future__ import annotations
+from typing import Iterable, Tuple, Union
 
-from typing import Any, Iterable, Tuple, Union
+import _bleio.adapter_ as adap
+import _bleio.address
+import _bleio.service
 
 from bleak import BleakClient
 
-from _bleio import Address, Service, call_async
 
 Buf = Union[bytes, bytearray, memoryview]
 
@@ -44,7 +47,7 @@ class Connection:
        import _bleio
 
        my_entry = None
-       for entry in _bleio.adapter.scan(2.5):
+       for entry in adapter.scan(2.5):
            if entry.name is not None and entry.name == 'InterestingPeripheral':
                my_entry = entry
                break
@@ -52,27 +55,28 @@ class Connection:
        if not my_entry:
            raise Exception("'InterestingPeripheral' not found")
 
-       connection = _bleio.adapter.connect(my_entry.address, timeout=10)"""
+       connection = adapter.connect(my_entry.address, timeout=10)"""
 
-    def __init__(self, address: Address):
+    def __init__(self, address: _bleio.address.Address):
         """Connections should not be created directly.
         Instead, to initiate a connection use `Adapter.connect`.
         Connections may also be made when another device initiates a connection. To use a Connection
         created by a peer, read the `Adapter.connections` property.
 
-        :param Address address: Address of device to connect to
+        :param _bleio.address.Address address: _bleio.address.Address of device to connect to
         """
         self._address = address
+        self._bleak_client = None
 
     @classmethod
-    def from_bleak(cls, address: Address, bleak_client: BleakClient) -> "Connection":
+    def from_bleak(cls, address: _bleio.address.Address, bleak_client: BleakClient) -> "Connection":
         """Create a Connection from bleak information.
 
-        :param Address address: Address of device to connect to
+        :param ~_bleio.address.Address address: Address of device to connect to
         :param BleakClient bleak_client: BleakClient used to make connection. (Blinka _bleio only)
         """
         conn = Connection(address)
-        conn._bleak_client = bleak_client
+        conn._bleak_client = bleak_client      # pylint: disable=protected-access
         return conn
 
     @property
@@ -81,8 +85,8 @@ class Connection:
 
     def disconnect(self) -> None:
         """Disconnects from the remote peripheral. Does nothing if already disconnected."""
-        _bleio.adapter.delete_connection(self)
-        _bleio.call_async(self._disconnect_async())
+        adap.adapter.delete_connection(self)
+        adap.adapter.await_bleak(self._disconnect_async())
 
     async def _disconnect_async(self) -> None:
         """Disconnects from the remote peripheral. Does nothing if already disconnected."""
@@ -94,12 +98,14 @@ class Connection:
 
     def discover_remote_services(
         self, service_uuids_whitelist: Iterable = None
-    ) -> Tuple["Service"]:
-        return call_async(self._discover_remote_services_async(service_uuids_whitelist))
+    ) -> Tuple[_bleio.service.Service]:
+        return adap.adapter.await_bleak(
+            self._discover_remote_services_async(service_uuids_whitelist)
+        )
 
     async def _discover_remote_services_async(
         self, service_uuids_whitelist: Iterable = None
-    ) -> Tuple[Service]:
+    ) -> Tuple[_bleio.service.Service]:
         """Do BLE discovery for all services or for the given service UUIDS,
          to find their handles and characteristics, and return the discovered services.
          `Connection.connected` must be True.
@@ -129,7 +135,7 @@ class Connection:
 
         bleak_services = await self._bleak_client.get_services()
         return tuple(
-            Service.from_bleak(self, bleak_service)
+            _bleio.service.Service.from_bleak(self, bleak_service)
             for bleak_service in bleak_services
             if bleak_service.uuid.lower() in bleak_service_uuids_whitelist
         )
@@ -137,7 +143,7 @@ class Connection:
     @property
     def connected(self) -> bool:
         """True if connected to the remote peer."""
-        return call_async(self._bleak_client.is_connected())
+        return adap.adapter.await_bleak(self._bleak_client.is_connected())
 
     @property
     def paired(self) -> bool:
@@ -172,4 +178,4 @@ class Connection:
         raise NotImplementedError("max_packet_length not available")
 
     def __repr__(self):
-        return "<Connection: {}".format(self.address)
+        return "<Connection: {}".format(self._address)

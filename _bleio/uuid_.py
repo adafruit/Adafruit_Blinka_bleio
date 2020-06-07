@@ -25,9 +25,10 @@ _bleio implementation for Adafruit_Blinka_bleio
 
 * Author(s): Dan Halbert for Adafruit Industries
 """
+from __future__ import annotations
+from typing import Any, Union
 
 import re
-from typing import Any, Union
 
 Buf = Union[bytes, bytearray, memoryview]
 

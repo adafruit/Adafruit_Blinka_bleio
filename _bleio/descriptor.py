@@ -25,9 +25,13 @@ _bleio implementation for Adafruit_Blinka_bleio
 
 * Author(s): Dan Halbert for Adafruit Industries
 """
+from __future__ import annotations
 from typing import Union
 
-from _bleio import Attribute, Characteristic, UUID, call_async
+import _bleio.adapter_ as adap
+from _bleio.attribute import Attribute
+from _bleio.characteristic import Characteristic
+from _bleio.uuid_ import UUID
 
 from bleak.backends.descriptor import BleakGATTDescriptor
 
@@ -115,7 +119,7 @@ class Descriptor:
     def from_bleak(
         cls, characteristic: Characteristic, bleak_descriptor: BleakGATTDescriptor
     ):
-        desc = Characteristic.add_to_characteristic(
+        desc = Descriptor.add_to_characteristic(
             characteristic=characteristic,
             uuid=UUID(bleak_descriptor.uuid),
             read_perm=Attribute.OPEN,
@@ -140,7 +144,7 @@ class Descriptor:
     @property
     def value(self) -> bytes:
         """The value of this descriptor."""
-        return call_async(
+        return adap.adapter.await_bleak(
             self.characteristic.service.connection.bleak_client.read_gatt_descriptor(
                 self.uuid.string
             )
@@ -148,7 +152,7 @@ class Descriptor:
 
     @value.setter
     def value(self, val) -> None:
-        call_async(
+        adap.adapter.await_bleak(
             self.characteristic.service.connection.bleak_client.write_gatt_descriptor(
                 self.uuid.string, val
             )

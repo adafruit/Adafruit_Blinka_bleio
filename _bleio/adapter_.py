@@ -25,18 +25,25 @@ _bleio implementation for Adafruit_Blinka_bleio
 
 * Author(s): Dan Halbert for Adafruit Industries
 """
-
+from __future__ import annotations
 from typing import Iterable, Union
 
 import asyncio
-import os
+import platform
+import threading
 import time
 
 from bleak import BleakClient, BleakScanner
 
-from _bleio import adapter, call_async, Address, BluetoothError, Connection, ScanEntry
+from _bleio.address import Address
+from _bleio.connection import Connection
+from _bleio.exceptions import BluetoothError
+from _bleio.scan_entry import ScanEntry
 
 Buf = Union[bytes, bytearray, memoryview]
+
+# Singleton _bleio.adapter is defined at the ned of this file.
+adapter = None  #pylint: disable=invalid-name
 
 
 class Adapter:
@@ -46,10 +53,30 @@ class Adapter:
     def __init__(self):
         if adapter:
             raise RuntimeError("Use the singleton _bleio.adapter")
-        self._name = os.uname().nodename
+        self._name = platform.node()
         # Unbounded FIFO for scan results
         self._scanning_in_progress = False
         self._connections = []
+        self._bleak_loop = None
+        self._bleak_thread = threading.Thread(target=self._run_bleak_loop)
+        # Discard thread quietly on exit.
+        self._bleak_thread.daemon = True
+        self._bleak_thread_ready = threading.Event()
+        self._bleak_thread.start()
+        # Wait for thread to start.
+        self._bleak_thread_ready.wait()
+
+    def _run_bleak_loop(self):
+        self._bleak_loop = asyncio.new_event_loop()
+        # Event loop is now available.
+        self._bleak_thread_ready.set()
+        self._bleak_loop.run_forever()
+
+    def await_bleak(self, coro, timeout=None):
+        """Call an async routine in the bleak thread from sync code, and await its result."""
+        # This is a concurrent.Future.
+        future = asyncio.run_coroutine_threadsafe(coro, self._bleak_loop)
+        return future.result(timeout)
 
     @property
     def enabled(self) -> bool:
@@ -119,12 +146,12 @@ class Adapter:
         :returns: an iterable of `_bleio.ScanEntry` objects
         :rtype: iterable"""
 
-        scanner = BleakScanner()
+        scanner = BleakScanner(loop=self._bleak_loop)
         self._scanning_in_progress = True
 
         start = time.time()
         while self._scanning_in_progress and time.time() - start < timeout:
-            for device in call_async(
+            for device in self.await_bleak(
                 self._scan_for_interval(scanner, self._SCAN_INTERVAL)
             ):
                 if not device or device.rssi < minimum_rssi:
@@ -152,16 +179,19 @@ class Adapter:
         return bool(self._connections)
 
     @property
-    def connections(self) -> Iterable:
+    def connections(self) -> Iterable[Connection]:
         return tuple(self._connections)
 
     def connect(self, address: Address, *, timeout: float) -> None:
-        return call_async(self._connect_async(address, timeout=timeout))
+        return self.await_bleak(self._connect_async(address, timeout=timeout))
 
     async def _connect_async(self, address: Address, *, timeout: float) -> None:
         client = BleakClient(address.bleak_address)
+        # connect() takes a timeout, but it's a timeout to do a
+        # discover() scan, not an actual connect timeout. We just did
+        # scan, so make this timeout really short.
         try:
-            await asyncio.wait_for(client.connect(), timeout)
+            await asyncio.wait_for(client.connect(timeout=0.1), timeout)
         except asyncio.TimeoutError:
             raise BluetoothError("Failed to connect: timeout")
 
@@ -179,3 +209,8 @@ class Adapter:
         raise NotImplementedError(
             "Use the host computer's BLE comamnds to reset bonding infomration"
         )
+
+
+# Create adapter singleton.
+adapter = Adapter()
+adapter.enabled = True

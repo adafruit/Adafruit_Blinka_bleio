@@ -22,9 +22,10 @@
 """
 `_bleio`
 """
+from __future__ import annotations
+from typing import Any, Union
 
 import re
-from typing import Any, Union
 
 Buf = Union[bytes, bytearray, memoryview]
 

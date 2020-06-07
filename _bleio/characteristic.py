@@ -25,15 +25,19 @@ _bleio implementation for Adafruit_Blinka_bleio
 
 * Author(s): Dan Halbert for Adafruit Industries
 """
+from __future__ import annotations
 from typing import Any, Tuple, Union
-import queue
 
-from _bleio import Attribute, UUID, call_async
+import queue
 
 from bleak.backends.characteristic import (
     BleakGATTCharacteristic,
     GattCharacteristicsFlags,
 )
+
+import _bleio.adapter_ as adap
+from _bleio.attribute import Attribute
+from _bleio.uuid_ import UUID
 
 Buf = Union[bytes, bytearray, memoryview]
 
@@ -179,17 +183,19 @@ class Characteristic:
                 return self.notify_queue.get_nowait()
             except queue.Empty:
                 return None
-        return call_async(
+        return adap.adapter.await_bleak(
             self.service.connection.bleak_client.read_gatt_char(self.uuid.bleak_uuid)
         )
 
     @value.setter
     def value(self, val) -> None:
-        call_async(
+        adap.adapter.await_bleak(
             # BlueZ DBus cannot take a bytes here, though it can take a tuple, etc.
             # So use a bytearray.
             self.service.connection.bleak_client.write_gatt_char(
-                self.uuid.bleak_uuid, bytearray(val), response=self.properties | Characteristic.WRITE
+                self.uuid.bleak_uuid,
+                bytearray(val),
+                response=self.properties | Characteristic.WRITE,
             )
         )
 
@@ -213,13 +219,13 @@ class Characteristic:
             raise NotImplementedError("Indicate not available in bleak")
 
         if notify:
-            call_async(
+            adap.adapter.await_bleak(
                 self._service.connection.bleak_client.start_notify(
                     self._bleak_gatt_characteristic.uuid, self._notify_callback,
                 )
             )
         else:
-            call_async(
+            adap.adapter.await_bleak(
                 self._service.bleak_client.stop_notify(
                     self._bleak_gatt_characteristic.uuid
                 )

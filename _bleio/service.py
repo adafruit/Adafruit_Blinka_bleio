@@ -25,19 +25,14 @@ _bleio implementation for Adafruit_Blinka_bleio
 
 * Author(s): Dan Halbert for Adafruit Industries
 """
+from __future__ import annotations
+from typing import Tuple, Union
 
-from typing import Iterator, Tuple, Union
+from _bleio.characteristic import Characteristic
+import _bleio.connection
+from _bleio.uuid_ import UUID
 
-
-import asyncio
-import os
-import time
-
-# janus.Queue is thread-safe and can be used from both sync and async code.
-import janus
 from bleak.backends.service import BleakGATTService
-
-from _bleio import Characteristic, UUID
 
 
 class Service:
@@ -62,11 +57,13 @@ class Service:
         self._remote = remote
         self._connection = None
         self._characteristics = ()
+        self._bleak_gatt_service = None
 
+    # pylint: disable=protected-access
     @classmethod
     def from_bleak(
-        cls, connection: "Connection", bleak_gatt_service: BleakGATTService
-    ) -> "Service":
+        cls, connection: _bleio.connection.Connection, bleak_gatt_service: BleakGATTService
+    ) -> Service:
         service = cls(UUID(bleak_gatt_service.uuid), remote=True)
         service._connection = connection
         service._characteristics = tuple(
@@ -105,7 +102,7 @@ class Service:
         return self._uuid
 
     @property
-    def connection(self) -> "Connection":
+    def connection(self) -> _bleio.connection.Connection:
         """Connection associated with this service, if any."""
         return self._connection
 
