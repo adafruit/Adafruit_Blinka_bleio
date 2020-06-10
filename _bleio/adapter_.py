@@ -188,10 +188,12 @@ class Adapter:
     async def _connect_async(self, address: Address, *, timeout: float) -> None:
         client = BleakClient(address.bleak_address)
         # connect() takes a timeout, but it's a timeout to do a
-        # discover() scan, not an actual connect timeout. We just did
-        # scan, so make this timeout really short.
+        # discover() scan, not an actual connect timeout.
+        # TODO: avoid the second discovery.
         try:
-            await asyncio.wait_for(client.connect(timeout=0.1), timeout)
+            await client.connect(timeout=timeout)
+            # This does not seem to connect reliably.
+            #await asyncio.wait_for(client.connect(), timeout)
         except asyncio.TimeoutError:
             raise BluetoothError("Failed to connect: timeout")
 
