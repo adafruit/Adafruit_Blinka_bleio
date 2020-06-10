@@ -116,7 +116,7 @@ class ScanEntry:
                 # Re-concatenate it into bytes
                 all_mfr_data = bytearray()
                 for mfr_id, mfr_data in value.items():
-                    all_mfr_data.extend(mfr_id.to_bytes(2, byteorder="big"))
+                    all_mfr_data.extend(mfr_id.to_bytes(2, byteorder="little"))
                     all_mfr_data.extend(mfr_data)
                 data_dict[0xFF] = all_mfr_data
             elif key == "uuids":
