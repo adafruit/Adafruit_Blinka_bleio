@@ -26,9 +26,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
-from typing import Any, Tuple, Union
-
-import queue
+from typing import Any, Callable, Tuple, Union
 
 from bleak.backends.characteristic import (
     BleakGATTCharacteristic,
@@ -85,7 +83,7 @@ class Characteristic:
         self._service = None
         self._descriptors = ()
         self._bleak_gatt_characteristic = None
-        self.notify_queue = None
+        self._notify_callbacks = set()
 
     @classmethod
     def add_to_service(
@@ -178,11 +176,6 @@ class Characteristic:
     @property
     def value(self) -> Union[bytes, None]:
         """The value of this characteristic."""
-        if self.notify_queue:
-            try:
-                return self.notify_queue.get_nowait()
-            except queue.Empty:
-                return None
         return adap.adapter.await_bleak(
             self.service.connection.bleak_client.read_gatt_char(self.uuid.bleak_uuid)
         )
@@ -216,7 +209,7 @@ class Characteristic:
         :param float indicate: True if Characteristic should receive indications of remote writes
         """
         if indicate:
-            raise NotImplementedError("Indicate not available in bleak")
+            raise NotImplementedError("Indicate not available")
 
         if notify:
             adap.adapter.await_bleak(
@@ -231,12 +224,18 @@ class Characteristic:
                 )
             )
 
+    def add_notify_callback(self, callback: Callable[[Buf], None]):
+        """Add a callback to call when a notify happens on this characteristic."""
+        self._notify_callbacks.add(callback)
+
+    def remove_notify_callback(self, callback: Callable[[Buf], None]):
+        """Remove a callback to call when a notify happens on this characteristic."""
+        self._notify_callbacks.remove(callback)
+
     def _notify_callback(self, bleak_uuid: str, data: Buf):
-        if self.notify_queue and bleak_uuid == self.uuid.bleak_uuid:
-            if self.notify_queue.full():
-                # Discard oldest data to make room
-                self.notify_queue.get_nowait()
-            self.notify_queue.put_nowait(data)
+        if bleak_uuid == self.uuid.bleak_uuid:
+            for callback in self._notify_callbacks:
+                callback(data)
 
     def __repr__(self) -> str:
         if self.uuid:

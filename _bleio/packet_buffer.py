@@ -51,9 +51,15 @@ class PacketBuffer:
           or a remote Characteristic in a remote Service that a Central has connected to.
         :param int buffer_size: Size of ring buffer (in packets of the Characteristic's maximum
           length) that stores incoming packets coming from the peer."""
-        self._characteristic = characteristic
         self._queue = queue.Queue(buffer_size)
-        characteristic.notify_queue = self._queue
+        self._characteristic = characteristic
+        characteristic.add_notify_callback(self._notify_callback)
+
+    def _notify_callback(self, data: Buf) -> None:
+        if self._queue.full():
+            # Discard oldest data to make room.
+            self._queue.get_nowait()
+        self._queue.put_nowait(data)
 
     def readinto(self, buf: Buf) -> int:
         """Reads a single BLE packet into the ``buf``.
@@ -84,11 +90,14 @@ class PacketBuffer:
         :return: number of bytes written. May include header bytes when packet is empty.
         :rtype: int
         """
-        raise NotImplementedError()
+        # TODO Figure out if we can accumulate intermediate results.
+        packet = header + data if header else data
+        self._queue.put_nowait(packet)
+        return len(packet)
 
     def deinit(self) -> None:
         """Disable permanently."""
-        # TODO
+        self._characteristic.remove_notify_callback(self._notify_callback)
 
     @property
     def packet_size(self) -> int:

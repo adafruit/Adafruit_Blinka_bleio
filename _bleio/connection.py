@@ -69,14 +69,16 @@ class Connection:
         self._bleak_client = None
 
     @classmethod
-    def from_bleak(cls, address: _bleio.address.Address, bleak_client: BleakClient) -> "Connection":
+    def from_bleak(
+        cls, address: _bleio.address.Address, bleak_client: BleakClient
+    ) -> "Connection":
         """Create a Connection from bleak information.
 
         :param ~_bleio.address.Address address: Address of device to connect to
         :param BleakClient bleak_client: BleakClient used to make connection. (Blinka _bleio only)
         """
         conn = Connection(address)
-        conn._bleak_client = bleak_client      # pylint: disable=protected-access
+        conn._bleak_client = bleak_client  # pylint: disable=protected-access
         return conn
 
     @property

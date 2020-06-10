@@ -43,7 +43,7 @@ from _bleio.scan_entry import ScanEntry
 Buf = Union[bytes, bytearray, memoryview]
 
 # Singleton _bleio.adapter is defined at the ned of this file.
-adapter = None  #pylint: disable=invalid-name
+adapter = None  # pylint: disable=invalid-name
 
 
 class Adapter:
@@ -117,13 +117,13 @@ class Adapter:
         self,
         prefixes: Buf = b"",
         *,
-        buffer_size: int = 512,
-        extended: bool = False,
+        buffer_size: int = 512,  # pylint: disable=unused-argument
+        extended: bool = False,  # pylint: disable=unused-argument
         timeout: float = None,
-        interval: float = 0.1,
-        window: float = 0.1,
+        interval: float = 0.1,  # pylint: disable=unused-argument
+        window: float = 0.1,  # pylint: disable=unused-argument
         minimum_rssi: int = -80,
-        active: bool = True
+        active: bool = True  # pylint: disable=unused-argument
     ) -> Iterable:
         """
         Starts a BLE scan and returns an iterator of results. Advertisements and scan responses are
@@ -188,9 +188,9 @@ class Adapter:
     async def _connect_async(self, address: Address, *, timeout: float) -> None:
         client = BleakClient(address.bleak_address)
         # connect() takes a timeout, but it's a timeout to do a
-        # discover() scan, not an actual connect timeout. We just did
-        # scan, so make this timeout really short.
+        # discover() scan, not an actual connect timeout.
         try:
+            await client.connect()
             await asyncio.wait_for(client.connect(timeout=0.1), timeout)
         except asyncio.TimeoutError:
             raise BluetoothError("Failed to connect: timeout")

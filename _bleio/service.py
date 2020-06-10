@@ -62,7 +62,9 @@ class Service:
     # pylint: disable=protected-access
     @classmethod
     def from_bleak(
-        cls, connection: _bleio.connection.Connection, bleak_gatt_service: BleakGATTService
+        cls,
+        connection: _bleio.connection.Connection,
+        bleak_gatt_service: BleakGATTService,
     ) -> Service:
         service = cls(UUID(bleak_gatt_service.uuid), remote=True)
         service._connection = connection

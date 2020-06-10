@@ -41,7 +41,7 @@ from _bleio.connection import *
 from _bleio.descriptor import *
 from _bleio.scan_entry import *
 
-# from _bleio.characteristic_buffer import *
+from _bleio.characteristic_buffer import *
 from _bleio.packet_buffer import *
 from _bleio.scan_results import *
 
