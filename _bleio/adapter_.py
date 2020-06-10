@@ -150,7 +150,9 @@ class Adapter:
         self._scanning_in_progress = True
 
         start = time.time()
-        while self._scanning_in_progress and (timeout is None or time.time() - start < timeout):
+        while self._scanning_in_progress and (
+            timeout is None or time.time() - start < timeout
+        ):
             for device in self.await_bleak(
                 self._scan_for_interval(scanner, self._SCAN_INTERVAL)
             ):
@@ -193,7 +195,7 @@ class Adapter:
         try:
             await client.connect(timeout=timeout)
             # This does not seem to connect reliably.
-            #await asyncio.wait_for(client.connect(), timeout)
+            # await asyncio.wait_for(client.connect(), timeout)
         except asyncio.TimeoutError:
             raise BluetoothError("Failed to connect: timeout")
 
