@@ -235,6 +235,7 @@ class Characteristic:
     def _notify_callback(self, bleak_uuid: str, data: Buf):
         if bleak_uuid == self.uuid.bleak_uuid:
             for callback in self._notify_callbacks:
+                print("----characteristic notify callback", data)
                 callback(data)
 
     def __repr__(self) -> str:

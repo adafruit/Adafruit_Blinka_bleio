@@ -65,7 +65,6 @@ class CharacteristicBuffer:
         characteristic.add_notify_callback(self._notify_callback)
 
     def _notify_callback(self, data: Buf) -> None:
-        print("************callback", data)
         # Add data bytes to queue, one at a time.
         if self._queue.full():
             # Discard oldest data to make room.
