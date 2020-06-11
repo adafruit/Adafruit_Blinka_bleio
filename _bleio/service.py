@@ -28,11 +28,11 @@ _bleio implementation for Adafruit_Blinka_bleio
 from __future__ import annotations
 from typing import Tuple, Union
 
+from bleak.backends.service import BleakGATTService
+
 from _bleio.characteristic import Characteristic
 import _bleio.connection
 from _bleio.uuid_ import UUID
-
-from bleak.backends.service import BleakGATTService
 
 
 class Service:

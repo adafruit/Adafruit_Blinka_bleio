@@ -25,11 +25,11 @@
 from __future__ import annotations
 from typing import Iterable, Tuple, Union
 
+from bleak import BleakClient
+
 import _bleio.adapter_ as adap
 import _bleio.address
 import _bleio.service
-
-from bleak import BleakClient
 
 
 Buf = Union[bytes, bytearray, memoryview]

@@ -28,12 +28,12 @@ _bleio implementation for Adafruit_Blinka_bleio
 from __future__ import annotations
 from typing import Union
 
+from bleak.backends.descriptor import BleakGATTDescriptor
+
 import _bleio.adapter_ as adap
 from _bleio.attribute import Attribute
 from _bleio.characteristic import Characteristic
 from _bleio.uuid_ import UUID
-
-from bleak.backends.descriptor import BleakGATTDescriptor
 
 Buf = Union[bytes, bytearray, memoryview]
 
