@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
+`_bleio.packet_buffer`
+=======================================================================
 
 _bleio implementation for Adafruit_Blinka_bleio
 

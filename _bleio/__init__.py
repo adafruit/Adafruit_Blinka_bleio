@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
+`_bleio`
+=======================================================================
 
 _bleio implementation for Adafruit_Blinka_bleio
 
@@ -43,7 +45,6 @@ from _bleio.scan_entry import *
 
 from _bleio.characteristic_buffer import *
 from _bleio.packet_buffer import *
-from _bleio.scan_results import *
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"

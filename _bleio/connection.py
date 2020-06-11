@@ -20,7 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
-`_bleio`
+`_bleio.connection`
+=======================================================================
+
+_bleio implementation for Adafruit_Blinka_bleio
+
+* Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
 from typing import Iterable, Tuple, Union

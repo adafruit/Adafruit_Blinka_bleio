@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
+`_bleio.characteristic`
+=======================================================================
 
 _bleio implementation for Adafruit_Blinka_bleio
 
@@ -107,10 +109,10 @@ class Characteristic:
            `BROADCAST`, `INDICATE`, `NOTIFY`, `READ`, `WRITE`, `WRITE_NO_RESPONSE`.
         :param int read_perm: Specifies whether the characteristic can be read by a client,
            and if so, which security mode is required.
-           Must be one of the integer values `Attribute.NO_ACCESS`, `Attribute.OPEN`,
-           `Attribute.ENCRYPT_NO_MITM`, `Attribute.ENCRYPT_WITH_MITM`,
-           `Attribute.LESC_ENCRYPT_WITH_MITM`,
-           `Attribute.SIGNED_NO_MITM`, or `Attribute.SIGNED_WITH_MITM`.
+           Must be one of the integer values `_bleio.Attribute.NO_ACCESS`, `_bleio.Attribute.OPEN`,
+           `_bleio.Attribute.ENCRYPT_NO_MITM`, `_bleio.Attribute.ENCRYPT_WITH_MITM`,
+           `_bleio.Attribute.LESC_ENCRYPT_WITH_MITM`,
+           `_bleio.Attribute.SIGNED_NO_MITM`, or `_bleio.Attribute.SIGNED_WITH_MITM`.
         :param int write_perm: Specifies whether the characteristic can be written by a client,
            and if so, which security mode is required.
            Values allowed are the same as ``read_perm``.

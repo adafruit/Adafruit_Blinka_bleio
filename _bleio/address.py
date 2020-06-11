@@ -20,8 +20,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
-`_bleio`
+`_bleio.address`
+=======================================================================
+
+`_bleio` for Blinka based on ``bleak``
+
+* Author(s): Dan Halbert
 """
+
 from __future__ import annotations
 from typing import Any, Union
 

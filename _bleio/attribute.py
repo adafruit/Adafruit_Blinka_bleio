@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
-`_bleio`
+`_bleio.attribute`
 ================================================================================
 
 `_bleio` for Blinka based on ``bleak``
