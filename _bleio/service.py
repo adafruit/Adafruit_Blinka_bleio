@@ -63,7 +63,7 @@ class Service:
 
     # pylint: disable=protected-access
     @classmethod
-    def from_bleak(
+    def _from_bleak(
         cls,
         connection: _bleio.connection.Connection,
         bleak_gatt_service: BleakGATTService,
@@ -71,14 +71,14 @@ class Service:
         service = cls(UUID(bleak_gatt_service.uuid), remote=True)
         service._connection = connection
         service._characteristics = tuple(
-            Characteristic.from_bleak(service, bleak_characteristic)
-            for bleak_characteristic in bleak_gatt_service.characteristics
+            Characteristic._from_bleak(service, _bleak_characteristic)
+            for _bleak_characteristic in bleak_gatt_service.characteristics
         )
         service._bleak_gatt_service = bleak_gatt_service
         return service
 
     @property
-    def bleak_service(self):
+    def _bleak_service(self):
         """BleakGATTService object"""
         return self._bleak_gatt_service
 

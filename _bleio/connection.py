@@ -71,24 +71,24 @@ class Connection:
         :param _bleio.address.Address address: _bleio.address.Address of device to connect to
         """
         self._address = address
-        self._bleak_client = None
+        self.__bleak_client = None
 
     @classmethod
-    def from_bleak(
-        cls, address: _bleio.address.Address, bleak_client: BleakClient
+    def _from_bleak(
+        cls, address: _bleio.address.Address, _bleak_client: BleakClient
     ) -> "Connection":
         """Create a Connection from bleak information.
 
         :param ~_bleio.address.Address address: Address of device to connect to
-        :param BleakClient bleak_client: BleakClient used to make connection. (Blinka _bleio only)
+        :param BleakClient _bleak_client: BleakClient used to make connection. (Blinka _bleio only)
         """
         conn = Connection(address)
-        conn._bleak_client = bleak_client  # pylint: disable=protected-access
+        conn.__bleak_client = _bleak_client  # pylint: disable=protected-access
         return conn
 
     @property
-    def bleak_client(self):
-        return self._bleak_client
+    def _bleak_client(self):
+        return self.__bleak_client
 
     def disconnect(self) -> None:
         """Disconnects from the remote peripheral. Does nothing if already disconnected."""
@@ -97,7 +97,7 @@ class Connection:
 
     async def _disconnect_async(self) -> None:
         """Disconnects from the remote peripheral. Does nothing if already disconnected."""
-        await self._bleak_client.disconnect()
+        await self.__bleak_client.disconnect()
 
     def pair(self, *, bond: bool = True) -> None:
         """Pair to the peer to improve security."""
@@ -134,23 +134,26 @@ class Connection:
           registered for use. (This restriction may be lifted in the future.)
 
         :return: A tuple of `_bleio.Service` objects provided by the remote peripheral."""
-        bleak_service_uuids_whitelist = ()
+        _bleak_service_uuids_whitelist = ()
         if service_uuids_whitelist:
-            bleak_service_uuids_whitelist = tuple(
-                uuid.bleak_uuid for uuid in service_uuids_whitelist
+            _bleak_service_uuids_whitelist = tuple(
+                # pylint: disable=protected-access
+                uuid._bleak_uuid
+                for uuid in service_uuids_whitelist
             )
 
-        bleak_services = await self._bleak_client.get_services()
+        _bleak_services = await self.__bleak_client.get_services()
+        # pylint: disable=protected-access
         return tuple(
-            _bleio.service.Service.from_bleak(self, bleak_service)
-            for bleak_service in bleak_services
-            if bleak_service.uuid.lower() in bleak_service_uuids_whitelist
+            _bleio.service.Service._from_bleak(self, _bleak_service)
+            for _bleak_service in _bleak_services
+            if _bleak_service.uuid.lower() in _bleak_service_uuids_whitelist
         )
 
     @property
     def connected(self) -> bool:
         """True if connected to the remote peer."""
-        return adap.adapter.await_bleak(self._bleak_client.is_connected())
+        return adap.adapter.await_bleak(self.__bleak_client.is_connected())
 
     @property
     def paired(self) -> bool:

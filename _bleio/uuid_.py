@@ -100,23 +100,23 @@ class UUID:
             self._size = 128
             self._uuid128 = bytes(uuid)
 
-        self._bleak_uuid = None
+        self.__bleak_uuid = None
 
     @classmethod
-    def from_bleak(cls, bleak_uuid: str) -> "UUID":
+    def _from_bleak(cls, _bleak_uuid: str) -> "UUID":
         """Bleak UUIDs are all strings.
         TODO: or are they also uuid.UUID's?
         """
-        uuid = UUID(bleak_uuid)
-        uuid._bleak_uuid = bleak_uuid  # pylint: disable=protected-access
+        uuid = UUID(_bleak_uuid)
+        uuid.__bleak_uuid = _bleak_uuid  # pylint: disable=protected-access
         return uuid
 
     @property
-    def bleak_uuid(self):
+    def _bleak_uuid(self):
         """Bleak UUID (str or in some cases, uuid.UUID)"""
-        if not self._bleak_uuid:
-            self._bleak_uuid = str(self)
-        return self._bleak_uuid
+        if not self.__bleak_uuid:
+            self.__bleak_uuid = str(self)
+        return self.__bleak_uuid
 
     @property
     def uuid16(self) -> int:

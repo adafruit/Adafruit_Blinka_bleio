@@ -138,26 +138,26 @@ class Characteristic:
         return charac
 
     @classmethod
-    def from_bleak(
-        cls, service: "Service", bleak_characteristic: BleakGATTCharacteristic
+    def _from_bleak(
+        cls, service: "Service", _bleak_characteristic: BleakGATTCharacteristic
     ):
         properties = 0
-        for prop in bleak_characteristic.properties:
+        for prop in _bleak_characteristic.properties:
             properties |= GattCharacteristicsFlags[prop.replace("-", "_")].value
         charac = Characteristic.add_to_service(
             service=service,
-            uuid=UUID(bleak_characteristic.uuid),
+            uuid=UUID(_bleak_characteristic.uuid),
             properties=properties,
             read_perm=Attribute.OPEN,
             write_perm=Attribute.OPEN,
         )
 
         # pylint: disable=protected-access
-        charac._bleak_gatt_characteristic = bleak_characteristic
+        charac._bleak_gatt_characteristic = _bleak_characteristic
         # pylint: enable=protected-access
         return charac
 
-    def bleak_characteristic(self):
+    def _bleak_characteristic(self):
         """BleakGATTCharacteristic object"""
         return self._bleak_gatt_characteristic
 
@@ -179,7 +179,8 @@ class Characteristic:
     def value(self) -> Union[bytes, None]:
         """The value of this characteristic."""
         return adap.adapter.await_bleak(
-            self.service.connection.bleak_client.read_gatt_char(self.uuid.bleak_uuid)
+            # pylint: disable=protected-access
+            self.service.connection._bleak_client.read_gatt_char(self.uuid._bleak_uuid)
         )
 
     @value.setter
@@ -187,8 +188,9 @@ class Characteristic:
         adap.adapter.await_bleak(
             # BlueZ DBus cannot take a bytes here, though it can take a tuple, etc.
             # So use a bytearray.
-            self.service.connection.bleak_client.write_gatt_char(
-                self.uuid.bleak_uuid,
+            # pylint: disable=protected-access
+            self.service.connection._bleak_client.write_gatt_char(
+                self.uuid._bleak_uuid,
                 bytearray(val),
                 response=self.properties | Characteristic.WRITE,
             )
@@ -213,15 +215,16 @@ class Characteristic:
         if indicate:
             raise NotImplementedError("Indicate not available")
 
+        # pylint: disable=protected-access
         if notify:
             adap.adapter.await_bleak(
-                self._service.connection.bleak_client.start_notify(
+                self._service.connection._bleak_client.start_notify(
                     self._bleak_gatt_characteristic.uuid, self._notify_callback,
                 )
             )
         else:
             adap.adapter.await_bleak(
-                self._service.bleak_client.stop_notify(
+                self._service._bleak_client.stop_notify(
                     self._bleak_gatt_characteristic.uuid
                 )
             )
@@ -234,8 +237,9 @@ class Characteristic:
         """Remove a callback to call when a notify happens on this characteristic."""
         self._notify_callbacks.remove(callback)
 
-    def _notify_callback(self, bleak_uuid: str, data: Buf):
-        if bleak_uuid == self.uuid.bleak_uuid:
+    def _notify_callback(self, _bleak_uuid: str, data: Buf):
+        # pylint: disable=protected-access
+        if _bleak_uuid == self.uuid._bleak_uuid:
             for callback in self._notify_callbacks:
                 callback(data)
 

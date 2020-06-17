@@ -1,3 +1,2 @@
 Adafruit-Blinka
 bleak
-janus

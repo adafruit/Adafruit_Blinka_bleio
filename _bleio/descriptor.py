@@ -119,7 +119,7 @@ class Descriptor:
         return desc
 
     @classmethod
-    def from_bleak(
+    def _from_bleak(
         cls, characteristic: Characteristic, bleak_descriptor: BleakGATTDescriptor
     ):
         desc = Descriptor.add_to_characteristic(
@@ -148,7 +148,8 @@ class Descriptor:
     def value(self) -> bytes:
         """The value of this descriptor."""
         return adap.adapter.await_bleak(
-            self.characteristic.service.connection.bleak_client.read_gatt_descriptor(
+            # pylint: disable=protected-access
+            self.characteristic.service.connection._bleak_client.read_gatt_descriptor(
                 self.uuid.string
             )
         )
@@ -156,7 +157,8 @@ class Descriptor:
     @value.setter
     def value(self, val) -> None:
         adap.adapter.await_bleak(
-            self.characteristic.service.connection.bleak_client.write_gatt_descriptor(
+            # pylint: disable=protected-access
+            self.characteristic.service.connection._bleak_client.write_gatt_descriptor(
                 self.uuid.string, val
             )
         )

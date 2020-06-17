@@ -42,6 +42,11 @@ from _bleio.connection import Connection
 from _bleio.exceptions import BluetoothError
 from _bleio.scan_entry import ScanEntry
 
+if platform.system() == "Linux":
+    import re
+    import signal
+    import subprocess
+
 Buf = Union[bytes, bytearray, memoryview]
 
 # Singleton _bleio.adapter is defined at the ned of this file.
@@ -68,6 +73,26 @@ class Adapter:
         # Wait for thread to start.
         self._bleak_thread_ready.wait()
 
+        self._hcitool_usable = False
+        self._hcitool = None
+        if platform.system() == "Linux":
+            # Try a no-op HCI command; this will require privileges,
+            # so we can see whether we can use hcitool in general.
+            try:
+                subprocess.run(
+                    ["hcitool", "cmd", "0x0", "0x0000"],
+                    timeout=2.0,
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                # Succeeded.
+                self._hcitool_usable = True
+            except subprocess.SubprocessError:
+                # Lots of things can go wrong:
+                # no hcitool, no privileges (causes non-zero return code), too slow, etc.
+                pass
+
     def _run_bleak_loop(self):
         self._bleak_loop = asyncio.new_event_loop()
         # Event loop is now available.
@@ -90,7 +115,22 @@ class Adapter:
 
     @property
     def address(self) -> Address:
-        # bleak has no API for the address yet.
+        if platform.system() == "Linux":
+            try:
+                lines = subprocess.run(
+                    ["bluetoothctl", "list"],
+                    timeout=2.0,
+                    check=True,
+                    capture_output=True,
+                ).stdout
+            except subprocess.SubprocessError:
+                return None
+            for line in lines.decode("utf-8").splitlines():
+                match = re.search(r"(..:..:..:..:..:..).*\[default\]", line)
+                if match:
+                    return Address(string=match.group(1))
+
+        # Linux method failed, or not on Linux.
         return None
 
     @property
@@ -148,6 +188,13 @@ class Adapter:
         :returns: an iterable of `_bleio.ScanEntry` objects
         :rtype: iterable"""
 
+        if self._hcitool_usable:
+            for scan_entry in self._start_scan_hcitool(
+                prefixes, timeout=timeout, minimum_rssi=minimum_rssi, active=active,
+            ):
+                yield scan_entry
+            return
+
         scanner = BleakScanner(loop=self._bleak_loop)
         self._scanning_in_progress = True
 
@@ -160,10 +207,95 @@ class Adapter:
             ):
                 if not device or device.rssi < minimum_rssi:
                     continue
-                scan_entry = ScanEntry(device)
+                scan_entry = ScanEntry._from_bleak(  # pylint: disable=protected-access
+                    device
+                )
                 if not scan_entry.matches(prefixes, all=False):
                     continue
                 yield scan_entry
+
+    @staticmethod
+    def _parse_hcidump_data(buffered, prefixes, minimum_rssi, active):
+        # > is controller to host, 04 is for an HCI Event packet, and 3E is an LE meta-event
+        if buffered[0].startswith(b"> 04 3E"):
+            subevent_code = int(buffered[0][11:13], 16)
+            if subevent_code == 0x02:
+                num_reports = int(buffered[0][14:16], 16)
+                if num_reports > 1:
+                    raise NotImplementedError("Multiple packed reports")
+                # Parse RSSI first so we can filter on it.
+                rssi = int(buffered[-1][-4:-2], 16)
+                if rssi > 127:
+                    rssi = (256 - rssi) * -1
+                if rssi == 127 or rssi < minimum_rssi:
+                    return None
+                event_type = int(buffered[0][17:19], 16)
+                # Filter out scan responses if we weren't supposed to active scan.
+                if event_type == 0x04 and not active:
+                    return None
+                address_type = int(buffered[0][20:22], 16)
+                address = bytes.fromhex(buffered[0][23:40].decode("utf-8"))
+                # Mod the address type by two because 2 and 3 are resolved versions of public and
+                # random static.
+                address = Address(address, address_type % 2)
+
+                buffered[0] = buffered[0][43:]
+                buffered[-1] = buffered[-1][:-4]
+                data = bytes.fromhex("".join([x.decode("utf-8") for x in buffered]))
+
+                scan_entry = ScanEntry(
+                    address=address,
+                    rssi=rssi,
+                    advertisement_bytes=data,
+                    connectable=event_type < 0x2,
+                    scan_response=event_type == 0x4,
+                )
+                if scan_entry.matches(prefixes, all=False):
+                    return scan_entry
+        return None
+
+    def _start_scan_hcitool(
+        self, prefixes: Buf, *, timeout: float, minimum_rssi, active: bool,
+    ) -> Iterable:
+        """hcitool scanning (only on Linux)"""
+        # hcidump outputs the full advertisement data, assuming it's run privileged.
+        # Since hcitool is privileged, we assume hcidump is too.
+        hcidump = subprocess.Popen(
+            ["hcidump", "--raw", "hci"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+
+        if not self._hcitool:
+            self._hcitool = subprocess.Popen(
+                ["hcitool", "lescan", "--duplicates"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        # Throw away the first two output lines of hcidump because they are version info.
+        hcidump.stdout.readline()
+        hcidump.stdout.readline()
+        returncode = self._hcitool.poll()
+        start_time = time.monotonic()
+        buffered = []
+        while returncode is None and (
+            not timeout or time.monotonic() - start_time < timeout
+        ):
+            line = hcidump.stdout.readline()
+            # print(line, line[0])
+            if line[0] != 32:  # 32 is ascii for space
+                if buffered:
+                    parsed = self._parse_hcidump_data(
+                        buffered, prefixes, minimum_rssi, active
+                    )
+                    if parsed:
+                        yield parsed
+                    buffered.clear()
+            buffered.append(line)
+            returncode = self._hcitool.poll()
+        self.stop_scan()
 
     async def _scan_for_interval(self, scanner, interval: float) -> Iterable[ScanEntry]:
         """Scan advertisements for the given interval and return ScanEntry objects
@@ -176,6 +308,11 @@ class Adapter:
 
     def stop_scan(self) -> None:
         """Stop scanning before timeout may have occurred."""
+        if self._hcitool_usable and self._hcitool:
+            if self._hcitool.returncode is None:
+                self._hcitool.send_signal(signal.SIGINT)
+                self._hcitool.wait()
+            self._hcitool = None
         self._scanning_in_progress = False
 
     @property
@@ -189,8 +326,9 @@ class Adapter:
     def connect(self, address: Address, *, timeout: float) -> None:
         return self.await_bleak(self._connect_async(address, timeout=timeout))
 
+    # pylint: disable=protected-access
     async def _connect_async(self, address: Address, *, timeout: float) -> None:
-        client = BleakClient(address.bleak_address)
+        client = BleakClient(address._bleak_address)
         # connect() takes a timeout, but it's a timeout to do a
         # discover() scan, not an actual connect timeout.
         # TODO: avoid the second discovery.
@@ -201,7 +339,7 @@ class Adapter:
         except asyncio.TimeoutError:
             raise BluetoothError("Failed to connect: timeout")
 
-        connection = Connection.from_bleak(address, client)
+        connection = Connection._from_bleak(address, client)
         self._connections.append(connection)
         return connection
 
@@ -213,7 +351,7 @@ class Adapter:
 
     def erase_bonding(self) -> None:
         raise NotImplementedError(
-            "Use the host computer's BLE comamnds to reset bonding infomration"
+            "Use the host computer's BLE comamnds to reset bonding information"
         )
 
 

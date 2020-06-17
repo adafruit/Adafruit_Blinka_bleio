@@ -69,7 +69,7 @@ class Address:
         self._type = address_type
 
     @property
-    def bleak_address(self) -> str:
+    def _bleak_address(self) -> str:
         return self.string
 
     @property

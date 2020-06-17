@@ -27,24 +27,56 @@ _bleio implementation for Adafruit_Blinka_bleio
 
 * Author(s): Dan Halbert for Adafruit Industries
 """
+from __future__ import annotations
+from typing import Union
 
 from _bleio import Address, UUID
 
+Buf = Union[bytes, bytearray, memoryview]
+
 
 class ScanEntry:
-    def __init__(self, device):
-        self._device = device
-        self._address = Address(string=device.address)
-        self._data_dict = self._build_data_dict()
+    def __init__(
+        self,
+        *,
+        address: Address,
+        rssi: int,
+        advertisement_bytes: Buf = None,
+        connectable: bool,
+        scan_response: bool,
+        data_dict=None
+    ):
+        """Should not be instantiated directly. Use `_bleio.Adapter.start_scan`."""
+        self._address = address
+        self._rssi = rssi
+        self._advertisement_bytes = advertisement_bytes
+        self._connectable = connectable
+        self._scan_response = scan_response
+        self._data_dict = data_dict
+        if advertisement_bytes and data_dict:
+            raise ValueError(
+                "advertisement_bytes and data_dict must not both be supplied"
+            )
+
+    @classmethod
+    def _from_bleak(cls, device):
+        return cls(
+            address=Address(string=device.address),
+            rssi=device.rssi,
+            # connectable is a guess, based on UUIDS being advertised or not.
+            connectable="uuids" in device.metadata,
+            scan_response=False,
+            data_dict=cls._data_dict_from_bleak(device),
+        )
 
     def matches(
         self, prefixes, all: bool = True  # pylint: disable=redefined-builtin
     ) -> bool:
-        # We don't have the original advertisement bytes, so we can't
+        # We may not have the original advertisement bytes, so we can't
         # do a perfect job of matching.
         if len(prefixes) == 0:
             return True
-        fields = self.advertisement_fields
+        fields = self._advertisement_fields
         for prefix in self._separate_prefixes(prefixes):
             prefix_matched = False
             for field in fields:
@@ -64,7 +96,7 @@ class ScanEntry:
         return str(self)
 
     def __str__(self):
-        return str(self._device)
+        return f"<ScanEntry {str(self._address)}>"
 
     @property
     def address(self):
@@ -72,47 +104,49 @@ class ScanEntry:
 
     @property
     def rssi(self):
-        return self._device.rssi
+        return self._rssi
 
     @property
     def connectable(self):
-        """This is unknown on most Blinka implementations. Always returns ``None``."""
-        return None
+        return self._connectable
 
     @property
     def scan_response(self):
-        """The original scan response is not available. Always returns ``None``."""
-        return None
+        return self._scan_response
 
     @property
     def advertisement_bytes(self):
-        """The original advertisement bytes are not available. Concatenate the
+        """The original advertisement bytes may not be available. Concatenate the
         data_dict entries to make an incomplete advertising bytestring.
         """
+        if self._advertisement_bytes:
+            return self._advertisement_bytes
         return b"".join(
-            bytes((len(field),)) + field for field in self.advertisement_fields
+            bytes((len(field),)) + field for field in self._advertisement_fields
         )
 
     @property
-    def advertisement_fields(self):
+    def _advertisement_fields(self):
         """The individual data fields of the advertisement, without length headers.
         Each field is one byte of advertising data type followed by the data.
         """
+        if self._advertisement_bytes is not None:
+            fields = []
+            idx = 0
+            while idx < len(self._advertisement_bytes):
+                field_length = self._advertisement_bytes[idx]
+                fields.append(self._advertisement_bytes[idx + 1 : idx + field_length])
+                idx += field_length
+            return fields
+
         return tuple(
-            bytes((data_type,)) + data for data_type, data in self.data_dict.items()
+            bytes((data_type,)) + data for data_type, data in self._data_dict.items()
         )
 
-    @property
-    def data_dict(self):
-        """Return the parsed advertisement dictionary. Each key is an advertising
-        data type value. This can substitute for the data that is passed
-        in `advertisement_bytes`.
-        """
-        return self._data_dict
-
-    def _build_data_dict(self):
+    @staticmethod
+    def _data_dict_from_bleak(device):
         data_dict = {}
-        for key, value in self._device.metadata.items():
+        for key, value in device.metadata.items():
             if key == "manufacturer_data":
                 # The manufacturer data value is a dictionary.
                 # Re-concatenate it into bytes
