@@ -73,25 +73,33 @@ class Adapter:
         # Wait for thread to start.
         self._bleak_thread_ready.wait()
 
-        self._hcitool_usable = False
+        # Not known yet.
+        self._hcitool_is_usable = None
         self._hcitool = None
-        if platform.system() == "Linux":
-            # Try a no-op HCI command; this will require privileges,
-            # so we can see whether we can use hcitool in general.
-            try:
-                subprocess.run(
-                    ["hcitool", "cmd", "0x0", "0x0000"],
-                    timeout=2.0,
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                # Succeeded.
-                self._hcitool_usable = True
-            except subprocess.SubprocessError:
-                # Lots of things can go wrong:
-                # no hcitool, no privileges (causes non-zero return code), too slow, etc.
-                pass
+
+    @property
+    def _use_hcitool(self):
+        if self._hcitool_is_usable is None:
+            self._hcitool_is_usable = False
+            if platform.system() == "Linux":
+                # Try a no-op HCI command; this will require privileges,
+                # so we can see whether we can use hcitool in general.
+                try:
+                    subprocess.run(
+                        ["hcitool", "cmd", "0x0", "0x0000"],
+                        timeout=2.0,
+                        check=True,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    # Succeeded.
+                    self._hcitool_is_usable = True
+                except subprocess.SubprocessError:
+                    # Lots of things can go wrong:
+                    # no hcitool, no privileges (causes non-zero return code), too slow, etc.
+                    pass
+
+        return self._hcitool_is_usable
 
     def _run_bleak_loop(self):
         self._bleak_loop = asyncio.new_event_loop()
@@ -188,7 +196,7 @@ class Adapter:
         :returns: an iterable of `_bleio.ScanEntry` objects
         :rtype: iterable"""
 
-        if self._hcitool_usable:
+        if self._use_hcitool:
             for scan_entry in self._start_scan_hcitool(
                 prefixes, timeout=timeout, minimum_rssi=minimum_rssi, active=active,
             ):
@@ -308,7 +316,7 @@ class Adapter:
 
     def stop_scan(self) -> None:
         """Stop scanning before timeout may have occurred."""
-        if self._hcitool_usable and self._hcitool:
+        if self._use_hcitool and self._hcitool:
             if self._hcitool.returncode is None:
                 self._hcitool.send_signal(signal.SIGINT)
                 self._hcitool.wait()
