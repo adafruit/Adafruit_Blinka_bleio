@@ -229,11 +229,11 @@ class Characteristic:
                 )
             )
 
-    def add_notify_callback(self, callback: Callable[[Buf], None]):
+    def _add_notify_callback(self, callback: Callable[[Buf], None]):
         """Add a callback to call when a notify happens on this characteristic."""
         self._notify_callbacks.add(callback)
 
-    def remove_notify_callback(self, callback: Callable[[Buf], None]):
+    def _remove_notify_callback(self, callback: Callable[[Buf], None]):
         """Remove a callback to call when a notify happens on this characteristic."""
         self._notify_callbacks.remove(callback)
 

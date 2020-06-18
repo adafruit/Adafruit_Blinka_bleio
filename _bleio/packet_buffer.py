@@ -55,7 +55,7 @@ class PacketBuffer:
           length) that stores incoming packets coming from the peer."""
         self._queue = queue.Queue(buffer_size)
         self._characteristic = characteristic
-        characteristic.add_notify_callback(self._notify_callback)
+        characteristic._add_notify_callback(self._notify_callback)
 
     def _notify_callback(self, data: Buf) -> None:
         if self._queue.full():
@@ -92,9 +92,11 @@ class PacketBuffer:
         :return: number of bytes written. May include header bytes when packet is empty.
         :rtype: int
         """
-        # TODO Figure out if we can accumulate intermediate results.
+        # Unlike in native _bleio, we cannot merge outgoing packets while waiting
+        # for a pending packet to be sent. So just sent the packets with a full header,
+        # one at a time.
         packet = header + data if header else data
-        self._queue.put_nowait(packet)
+        self._characteristic.value = packet
         return len(packet)
 
     def deinit(self) -> None:

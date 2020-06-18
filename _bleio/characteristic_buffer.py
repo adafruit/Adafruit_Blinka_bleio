@@ -63,8 +63,9 @@ class CharacteristicBuffer:
           Must be >= 1."""
         self._characteristic = characteristic
         self._timeout = timeout
+        self._buffer_size = buffer_size
         self._queue = queue.Queue(buffer_size)
-        characteristic.add_notify_callback(self._notify_callback)
+        characteristic._add_notify_callback(self._notify_callback)
 
     def _notify_callback(self, data: Buf) -> None:
         # Add data bytes to queue, one at a time.
@@ -86,30 +87,34 @@ class CharacteristicBuffer:
         because it will be faster.
 
         :return: Data read
-        :rtype: bytes or None
         """
-        b = bytearray()
-        end = time.time() + self._timeout
-        while len(b) < nbytes and time.time() < end:
-            try:
-                b.append(self._queue.get_nowait())
-            except queue.Empty:
-                # Let the BLE code run for a bit, and try again.
-                adap.adapter.await_bleak(asyncio.sleep(0.1))
+        b = bytearray(min(nbytes, self._buffer_size) if nbytes else self._buffer_size)
+        if self.readinto(b) == 0:
+            return None
         return b
 
     def readinto(self, buf: Buf) -> Union[int, None]:
         """Read bytes into the ``buf``. Read at most ``len(buf)`` bytes.
+
         :return: number of bytes read and stored into ``buf``
-        :rtype: int or None (on a non-blocking error)
         """
-        bytes_read = self.read(len(buf))
-        buf[0 : len(bytes_read)] = bytes_read
+        length = len(buf)
+        idx = 0
+        end = time.time() + self._timeout
+        while idx < length and time.time() < end:
+            try:
+                buf[idx] = self._queue.get_nowait()
+                idx += 1
+            except queue.Empty:
+                # Let the BLE code run for a bit, and try again.
+                adap.adapter.await_bleak(asyncio.sleep(0.1))
+
+        return idx
 
     def readline(self,) -> Buf:
         """Read a line, ending in a newline character.
+
         :return: the line read
-        :rtype: int or None
         """
         line = bytearray()
         end = time.time() + self._timeout
@@ -137,4 +142,5 @@ class CharacteristicBuffer:
 
     def deinit(self,) -> None:
         """Disable permanently."""
-        self._characteristic.add_notify_callback(self._notify_callback)
+        # pylint: disable=protected-access
+        self._characteristic._remove_notify_callback(self._notify_callback)
