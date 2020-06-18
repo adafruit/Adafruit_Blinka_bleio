@@ -19,7 +19,7 @@ extensions = [
 
 # Uncomment this mock below if you are manually testing the sphinx build on a
 # system where bleak isn't supported.
-# autodoc_mock_imports = ["bleak"]
+autodoc_mock_imports = ["bleak"]
 
 
 intersphinx_mapping = {

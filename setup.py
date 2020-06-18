@@ -45,5 +45,5 @@ setup(
     ],
     # What does your project relate to?
     keywords="adafruit blinka circuitpython micropython blinka_bleio bleio bleak",
-    py_modules=["_bleio"],
+    packages=["_bleio"],
 )

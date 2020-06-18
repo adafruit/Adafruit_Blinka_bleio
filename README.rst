@@ -22,7 +22,7 @@ This driver depends on:
 
 * `bleak <https://github.com/hbldh/bleak>`_
 
-It also depends on these Debian packages not install on Raspbian by default:
+It optionally also depends on these Debian packages not install on Raspbian by default:
 
 * ``bluez-hcidump``
 
@@ -51,28 +51,53 @@ To install in a virtual environment in your current project:
     source .env/bin/activate
     pip3 install adafruit-blinka-bleio
 
-Permissions
-=============
 
-For comprehensive scanning we use ``hcidump`` and ``hcitool``. By default, only root has
-enough privileges to do what we need.
+Support for Duplicate Advertisement scanning on Linux
+=====================================================
 
-So, to get permissions we use capabilities to grant ``hcitool`` and ``hcidump`` raw network
-access. This is very powerful! So, to limit access we change file execution permissions to
-restrict it to users in the bluetooth group.
+.. note::
+   Read this section if you are using advertising to transmit changing
+   data and need to receive all advertisements to receive this data.
+   One example of using advertising for data is described in the Adafruit Learn Guide
+   `Bluetooth LE Sensor Nodes to Raspberry Pi WiFi Bridge
+   <https://learn.adafruit.com/bluetooth-le-broadcastnet-sensor-node-raspberry-pi-wifi-bridge>`_.
 
-To add your user to the bluetooth group do:
+The regular Linux kernel ``bluez`` driver is set up to suppress
+multiple advertisements sent from the same BLE device.  As of this
+writing, this cannot be changed.  If you are using BLE advertisements
+to send changing data that you retrieve by scanning, the
+de-duplication can cause you to lose data when scanning via ``bleak``.
+
+To get around this problem, this library can instead look at raw BLE
+scanning data using the ``hcidump`` and ``hcitool`` tools and avoid
+going through the kernel driver. But this requires special setup.
+
+Normally, only root has enough privileges to do see the raw scanning
+data.  Since running as root is dangerous, you can instead use Linux
+capabilities to grant ``hcitool`` and ``hcidump`` raw network
+access. This is very powerful and not something to do casually. To
+limit access we recommend you change file execution permissions to
+restrict this capability to users in the ``bluetooth`` group.
+
+**If you are not using advertising to transmit changing data, you do
+not need to add these permissions. This library falls back to using**
+``bleak`` **for regular scanning if** ``hcitool`` **does not have
+these extra permissions.**
+
+To add yourself to the ``bluetooth`` group do:
 
 .. code-block:: shell
 
     sudo usermod -a -G bluetooth <your username>
 
-To set permissions do:
+You must then logout and log back in to be in the new group.
+
+To set permissions on ``hcitool`` and ``hcidump`` do:
 
 .. code-block:: shell
 
-    sudo chown :bluetooth /usr/bin/hci*
-    sudo chmod o-x /usr/bin/hci*
+    sudo chown :bluetooth /usr/bin/hcitool /usr/bin/hcidump
+    sudo chmod o-x /usr/bin/hcitool /usr/bin/hcidump
     sudo setcap 'cap_net_raw,cap_net_admin+eip' /usr/bin/hcitool
     sudo setcap 'cap_net_raw,cap_net_admin+eip' /usr/bin/hcidump
 
