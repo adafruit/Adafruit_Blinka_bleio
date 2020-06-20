@@ -28,6 +28,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
+import re
 from typing import Union
 
 from _bleio import Address, UUID
@@ -35,7 +36,13 @@ from _bleio import Address, UUID
 Buf = Union[bytes, bytearray, memoryview]
 
 
+
 class ScanEntry:
+    _RE_IGNORABLE_NAME = re.compile(
+        r"[0-9A-F]{2}-[0-9A-F]{2}-[0-9A-F]{2}-[0-9A-F]{2}-[0-9A-F]{2}-[0-9A-F]{2}",
+        re.IGNORECASE
+        )
+
     def __init__(
         self,
         *,
@@ -143,8 +150,8 @@ class ScanEntry:
             bytes((data_type,)) + data for data_type, data in self._data_dict.items()
         )
 
-    @staticmethod
-    def _data_dict_from_bleak(device):
+    @classmethod
+    def _data_dict_from_bleak(cls, device):
         data_dict = {}
         for key, value in device.metadata.items():
             if key == "manufacturer_data":
@@ -172,6 +179,10 @@ class ScanEntry:
             if uuids128:
                 # Complete list of 128-bit UUIDs
                 data_dict[0x07] = uuids128
+
+        if not cls._RE_IGNORABLE_NAME.fullmatch(device.name):
+            # Complete name
+            data_dict[0x09] = device.name.encode('utf-8')
 
         return data_dict
 
