@@ -28,6 +28,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
+import re
 from typing import Union
 
 from _bleio import Address, UUID
@@ -36,6 +37,18 @@ Buf = Union[bytes, bytearray, memoryview]
 
 
 class ScanEntry:
+    # Some device names are created by the bleak code or what it calls, and aren't the
+    # real advertised name. Suppress those. Patterns seen include (XX are hex digits):
+    # dev_XX_XX_XX_XX_XX_XX
+    # XX-XX-XX-XX-XX-XX
+    # Unknown
+    _RE_IGNORABLE_NAME = re.compile(
+        r"((dev_)?"
+        r"[0-9A-F]{2}[-_][0-9A-F]{2}[-_][0-9A-F]{2}[-_][0-9A-F]{2}[-_][0-9A-F]{2}[-_][0-9A-F]{2})"
+        r"|Unknown",
+        re.IGNORECASE,
+    )
+
     def __init__(
         self,
         *,
@@ -172,6 +185,10 @@ class ScanEntry:
             if uuids128:
                 # Complete list of 128-bit UUIDs
                 data_dict[0x07] = uuids128
+
+        if not ScanEntry._RE_IGNORABLE_NAME.fullmatch(device.name):
+            # Complete name
+            data_dict[0x09] = device.name.encode("utf-8")
 
         return data_dict
 
