@@ -156,8 +156,8 @@ class ScanEntry:
             bytes((data_type,)) + data for data_type, data in self._data_dict.items()
         )
 
-    @classmethod
-    def _data_dict_from_bleak(cls, device):
+    @staticmethod
+    def _data_dict_from_bleak(device):
         data_dict = {}
         for key, value in device.metadata.items():
             if key == "manufacturer_data":
@@ -186,7 +186,7 @@ class ScanEntry:
                 # Complete list of 128-bit UUIDs
                 data_dict[0x07] = uuids128
 
-        if not cls._RE_IGNORABLE_NAME.fullmatch(device.name):
+        if not ScanEntry._RE_IGNORABLE_NAME.fullmatch(device.name):
             # Complete name
             data_dict[0x09] = device.name.encode("utf-8")
 
