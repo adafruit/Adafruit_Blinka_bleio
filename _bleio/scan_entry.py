@@ -148,7 +148,8 @@ class ScanEntry:
             idx = 0
             while idx < len(self._advertisement_bytes):
                 field_length = self._advertisement_bytes[idx]
-                fields.append(self._advertisement_bytes[idx + 1 : idx + field_length])
+                idx += 1
+                fields.append(self._advertisement_bytes[idx : idx + field_length])
                 idx += field_length
             return fields
 
