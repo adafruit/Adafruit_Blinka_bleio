@@ -73,7 +73,7 @@ class Characteristic:
         """There is no regular constructor for a Characteristic.  A
         new local Characteristic can be created and attached to a
         Service by calling `add_to_service()`.  Remote Characteristic
-        objects are created by `Connection.discover_remote_services()`
+        objects are created by `_bleio.Connection.discover_remote_services`
         as part of remote Services."""
         self._uuid = uuid
         self._properties = properties

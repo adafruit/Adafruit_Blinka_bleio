@@ -45,7 +45,7 @@ class Service:
     ):
         """Create a new Service identified by the specified UUID. It can be accessed by all
         connections. This is known as a Service server. Client Service objects are created via
-        `Connection.discover_remote_services`.
+        `_bleio.Connection.discover_remote_services`.
 
         To mark the Service as secondary, pass `True` as :py:data:`secondary`.
 
