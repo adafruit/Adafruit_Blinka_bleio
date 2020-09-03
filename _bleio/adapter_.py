@@ -49,7 +49,7 @@ if platform.system() == "Linux":
 
 Buf = Union[bytes, bytearray, memoryview]
 
-# Singleton _bleio.adapter is defined at the ned of this file.
+# Singleton _bleio.adapter is defined at the end of this file.
 adapter = None  # pylint: disable=invalid-name
 
 
@@ -345,7 +345,7 @@ class Adapter:
             # This does not seem to connect reliably.
             # await asyncio.wait_for(client.connect(), timeout)
         except asyncio.TimeoutError:
-            raise BluetoothError("Failed to connect: timeout")
+            raise BluetoothError("Failed to connect: timeout") from asyncio.TimeoutError
 
         connection = Connection._from_bleak(address, client)
         self._connections.append(connection)

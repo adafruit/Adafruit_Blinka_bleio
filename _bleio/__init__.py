@@ -30,6 +30,8 @@ _bleio implementation for Adafruit_Blinka_bleio
 
 # pylint: disable=wrong-import-position
 
+from typing import Optional
+
 # These are in dependency order to avoid circular import issues.
 
 from _bleio.exceptions import *  # pylint: disable=redefined-builtin
@@ -45,6 +47,14 @@ from _bleio.scan_entry import *
 
 from _bleio.characteristic_buffer import *
 from _bleio.packet_buffer import *
+
+
+def set_adapter(new_adapter: Optional[Adapter]) -> None:
+    """Set the adapter to use for BLE, such as when using an HCI adapter.
+    Raises `NotImplementedError` when the adapter is a singleton and cannot be set.
+    """
+    raise NotImplementedError("Not settable")
+
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
