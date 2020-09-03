@@ -94,7 +94,9 @@ class UUID:
             try:
                 uuid = memoryview(uuid)
             except TypeError:
-                raise ValueError("UUID value is not str, int or byte buffer")
+                raise ValueError(
+                    "UUID value is not str, int or byte buffer"
+                ) from TypeError
             if len(uuid) != 16:
                 raise ValueError("Byte buffer must be 16 bytes")
             self._size = 128

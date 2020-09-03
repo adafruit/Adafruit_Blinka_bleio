@@ -21,6 +21,8 @@ extensions = [
 # system where bleak isn't supported.
 autodoc_mock_imports = ["bleak"]
 
+# Show the docstring from both the class and its __init__() method
+autoclass_content = "both"
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3.4", None),
