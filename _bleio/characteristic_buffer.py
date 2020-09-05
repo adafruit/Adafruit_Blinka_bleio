@@ -111,7 +111,9 @@ class CharacteristicBuffer:
 
         return idx
 
-    def readline(self,) -> Buf:
+    def readline(
+        self,
+    ) -> Buf:
         """Read a line, ending in a newline character.
 
         :return: the line read
@@ -135,12 +137,16 @@ class CharacteristicBuffer:
         """The number of bytes in the input buffer, available to be read"""
         return self._queue.qsize()
 
-    def reset_input_buffer(self,) -> None:
+    def reset_input_buffer(
+        self,
+    ) -> None:
         """Discard any unread characters in the input buffer."""
         while not self._queue.empty():
             self._queue.get_nowait()
 
-    def deinit(self,) -> None:
+    def deinit(
+        self,
+    ) -> None:
         """Disable permanently."""
         # pylint: disable=protected-access
         self._characteristic._remove_notify_callback(self._notify_callback)

@@ -63,6 +63,8 @@ class Adapter:
         self._name = platform.node()
         # Unbounded FIFO for scan results
         self._scanning_in_progress = False
+        # Created on demand in self._bleak_thread context.
+        self._scanner = None
         self._connections = []
         self._bleak_loop = None
         self._bleak_thread = threading.Thread(target=self._run_bleak_loop)
@@ -155,7 +157,7 @@ class Adapter:
         *,
         scan_response: Buf = None,
         connectable: bool = True,
-        interval: float = 0.1
+        interval: float = 0.1,
     ) -> None:
         raise NotImplementedError("Advertising not implemented")
 
@@ -173,7 +175,7 @@ class Adapter:
         interval: float = 0.1,  # pylint: disable=unused-argument
         window: float = 0.1,  # pylint: disable=unused-argument
         minimum_rssi: int = -80,
-        active: bool = True  # pylint: disable=unused-argument
+        active: bool = True,  # pylint: disable=unused-argument
     ) -> Iterable:
         """
         Starts a BLE scan and returns an iterator of results. Advertisements and scan responses are
@@ -198,12 +200,14 @@ class Adapter:
 
         if self._use_hcitool:
             for scan_entry in self._start_scan_hcitool(
-                prefixes, timeout=timeout, minimum_rssi=minimum_rssi, active=active,
+                prefixes,
+                timeout=timeout,
+                minimum_rssi=minimum_rssi,
+                active=active,
             ):
                 yield scan_entry
             return
 
-        scanner = BleakScanner(loop=self._bleak_loop)
         self._scanning_in_progress = True
 
         start = time.time()
@@ -211,9 +215,11 @@ class Adapter:
             timeout is None or time.time() - start < timeout
         ):
             for device in self.await_bleak(
-                self._scan_for_interval(scanner, self._SCAN_INTERVAL)
+                self._scan_for_interval(self._SCAN_INTERVAL)
             ):
-                if not device or device.rssi < minimum_rssi:
+                if not device or (
+                    device.rssi is not None and device.rssi < minimum_rssi
+                ):
                     continue
                 scan_entry = ScanEntry._from_bleak(  # pylint: disable=protected-access
                     device
@@ -263,7 +269,12 @@ class Adapter:
         return None
 
     def _start_scan_hcitool(
-        self, prefixes: Buf, *, timeout: float, minimum_rssi, active: bool,
+        self,
+        prefixes: Buf,
+        *,
+        timeout: float,
+        minimum_rssi,
+        active: bool,
     ) -> Iterable:
         """hcitool scanning (only on Linux)"""
         # hcidump outputs the full advertisement data, assuming it's run privileged.
@@ -305,14 +316,17 @@ class Adapter:
             returncode = self._hcitool.poll()
         self.stop_scan()
 
-    async def _scan_for_interval(self, scanner, interval: float) -> Iterable[ScanEntry]:
+    async def _scan_for_interval(self, interval: float) -> Iterable[ScanEntry]:
         """Scan advertisements for the given interval and return ScanEntry objects
         for all advertisements heard.
         """
-        await scanner.start()
+        if not self._scanner:
+            self._scanner = BleakScanner(loop=self._bleak_loop)
+
+        await self._scanner.start()
         await asyncio.sleep(interval)
-        await scanner.stop()
-        return await scanner.get_discovered_devices()
+        await self._scanner.stop()
+        return await self._scanner.get_discovered_devices()
 
     def stop_scan(self) -> None:
         """Stop scanning before timeout may have occurred."""
@@ -322,6 +336,7 @@ class Adapter:
                 self._hcitool.wait()
             self._hcitool = None
         self._scanning_in_progress = False
+        self._scanner = None
 
     @property
     def connected(self):
@@ -345,7 +360,7 @@ class Adapter:
             # This does not seem to connect reliably.
             # await asyncio.wait_for(client.connect(), timeout)
         except asyncio.TimeoutError:
-            raise BluetoothError("Failed to connect: timeout")
+            raise BluetoothError("Failed to connect: timeout") from asyncio.TimeoutError
 
         connection = Connection._from_bleak(address, client)
         self._connections.append(connection)

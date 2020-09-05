@@ -41,7 +41,11 @@ class Service:
     """Stores information about a BLE service and its characteristics."""
 
     def __init__(
-        self, uuid: UUID, *, secondary: bool = False, remote: bool = False,
+        self,
+        uuid: UUID,
+        *,
+        secondary: bool = False,
+        remote: bool = False,
     ):
         """Create a new Service identified by the specified UUID. It can be accessed by all
         connections. This is known as a Service server. Client Service objects are created via
@@ -71,8 +75,8 @@ class Service:
         service = cls(UUID(bleak_gatt_service.uuid), remote=True)
         service._connection = connection
         service._characteristics = tuple(
-            Characteristic._from_bleak(service, _bleak_characteristic)
-            for _bleak_characteristic in bleak_gatt_service.characteristics
+            Characteristic._from_bleak(service, bleak_characteristic)
+            for bleak_characteristic in bleak_gatt_service.characteristics
         )
         service._bleak_gatt_service = bleak_gatt_service
         return service
