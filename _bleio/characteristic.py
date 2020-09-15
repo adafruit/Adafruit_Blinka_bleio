@@ -238,11 +238,11 @@ class Characteristic:
         """Remove a callback to call when a notify happens on this characteristic."""
         self._notify_callbacks.remove(callback)
 
-    def _notify_callback(self, bleak_uuid: str, data: Buf):
+    def _notify_callback(self, handle: Optional[int], data: Buf):
         # pylint: disable=protected-access
-        if bleak_uuid == self.uuid._bleak_uuid:
-            for callback in self._notify_callbacks:
-                callback(data)
+        # TODO: Right now we can't vet the handle, because it may be None.
+        for callback in self._notify_callbacks:
+            callback(data)
 
     def __repr__(self) -> str:
         if self.uuid:
