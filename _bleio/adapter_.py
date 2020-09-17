@@ -28,7 +28,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
-from typing import Iterable, Union
+from typing import Iterable, Optional, Union
 
 import asyncio
 import platform
@@ -36,6 +36,7 @@ import threading
 import time
 
 from bleak import BleakClient, BleakScanner
+from bleak.backends.device import BLEDevice
 
 from _bleio.address import Address
 from _bleio.connection import Connection
@@ -53,7 +54,7 @@ Buf = Union[bytes, bytearray, memoryview]
 adapter = None  # pylint: disable=invalid-name
 
 
-class Adapter:
+class Adapter:  # pylint: disable=too-many-instance-attributes
     # Do blocking scans in chunks of this interval.
     _SCAN_INTERVAL = 0.25
 
@@ -398,6 +399,7 @@ class Adapter:
 
     def _cache_device(self, device: BLEDevice):
         self._cached_devices[device.address] = device
+
 
 # Create adapter singleton.
 adapter = Adapter()

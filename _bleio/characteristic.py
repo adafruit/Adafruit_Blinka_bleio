@@ -28,7 +28,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 from bleak.backends.characteristic import (
     BleakGATTCharacteristic,
@@ -238,6 +238,7 @@ class Characteristic:
         """Remove a callback to call when a notify happens on this characteristic."""
         self._notify_callbacks.remove(callback)
 
+    # pylint: disable=unused-argument
     def _notify_callback(self, handle: Optional[int], data: Buf):
         # pylint: disable=protected-access
         # TODO: Right now we can't vet the handle, because it may be None.
