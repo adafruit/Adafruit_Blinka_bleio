@@ -79,6 +79,10 @@ class Adapter:
         self._hcitool_is_usable = None
         self._hcitool = None
 
+        # Keep a cache of recently scanned devices, to avoid doing double
+        # device scanning.
+        self._cached_devices = {}
+
     @property
     def _use_hcitool(self):
         if self._hcitool_is_usable is None:
@@ -198,6 +202,10 @@ class Adapter:
         :returns: an iterable of `_bleio.ScanEntry` objects
         :rtype: iterable"""
 
+        # Remember only the most recently advertised devices.
+        # In the future, we might remember these for a few minutes.
+        self._clear_device_cache()
+
         if self._use_hcitool:
             for scan_entry in self._start_scan_hcitool(
                 prefixes,
@@ -221,6 +229,7 @@ class Adapter:
                     device.rssi is not None and device.rssi < minimum_rssi
                 ):
                     continue
+                self._cache_device(device)
                 scan_entry = ScanEntry._from_bleak(  # pylint: disable=protected-access
                     device
                 )
@@ -351,7 +360,10 @@ class Adapter:
 
     # pylint: disable=protected-access
     async def _connect_async(self, address: Address, *, timeout: float) -> None:
-        client = BleakClient(address._bleak_address)
+        device = self._cached_device(address)
+        # Use cached device if possible, to avoid having BleakClient do
+        # a scan again.
+        client = BleakClient(device if device else address._bleak_address)
         # connect() takes a timeout, but it's a timeout to do a
         # discover() scan, not an actual connect timeout.
         # TODO: avoid the second discovery.
@@ -377,6 +389,15 @@ class Adapter:
             "Use the host computer's BLE comamnds to reset bonding information"
         )
 
+    def _cached_device(self, address: Address) -> Optional[BLEDevice]:
+        """Return a device recently found during scanning with the given address."""
+        return self._cached_devices.get(address)
+
+    def _clear_device_cache(self):
+        self._cached_devices.clear()
+
+    def _cache_device(self, device: BLEDevice):
+        self._cached_devices[device.address] = device
 
 # Create adapter singleton.
 adapter = Adapter()
