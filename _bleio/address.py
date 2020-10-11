@@ -114,7 +114,7 @@ class Address:
         return False
 
     def __hash__(self) -> int:
-        return hash(self.address_bytes) ^ hash(self.type)
+        return hash(self.string) ^ hash(self.type)
 
     def __repr__(self) -> str:
         return f'Address(string="{self.string}")'
