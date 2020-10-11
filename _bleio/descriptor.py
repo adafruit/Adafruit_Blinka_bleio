@@ -59,7 +59,7 @@ class Descriptor:
 
         """There is no regular constructor for a Descriptor. A new local Descriptor can be created
         and attached to a Characteristic by calling `add_to_characteristic()`.
-        Remote Descriptor objects are created by `Connection.discover_remote_services()`
+        Remote Descriptor objects are created by `_bleio.Connection.discover_remote_services`
         as part of remote Characteristics in the remote Services that are discovered.
         """
         self._uuid = uuid

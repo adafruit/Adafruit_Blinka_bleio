@@ -64,9 +64,9 @@ class Connection:
 
     def __init__(self, address: _bleio.address.Address):
         """Connections should not be created directly.
-        Instead, to initiate a connection use `Adapter.connect`.
+        Instead, to initiate a connection use `_bleio.Adapter.connect`.
         Connections may also be made when another device initiates a connection. To use a Connection
-        created by a peer, read the `Adapter.connections` property.
+        created by a peer, read the `_bleio.Adapter.connections` property.
 
         :param _bleio.address.Address address: _bleio.address.Address of device to connect to
         """

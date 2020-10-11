@@ -50,7 +50,7 @@ if platform.system() == "Linux":
 
 Buf = Union[bytes, bytearray, memoryview]
 
-# Singleton _bleio.adapter is defined at the ned of this file.
+# Singleton _bleio.adapter is defined at the end of this file.
 adapter = None  # pylint: disable=invalid-name
 
 
