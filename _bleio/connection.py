@@ -35,7 +35,7 @@ from bleak import BleakClient
 import _bleio.adapter_ as adap
 import _bleio.address
 import _bleio.service
-
+import _bleio.uuid_
 
 Buf = Union[bytes, bytearray, memoryview]
 
@@ -133,21 +133,25 @@ class Connection:
           service or characteristic to be discovered. Creating the UUID causes the UUID to be
           registered for use. (This restriction may be lifted in the future.)
 
-        :return: A tuple of `_bleio.Service` objects provided by the remote peripheral."""
-        _bleak_service_uuids_whitelist = ()
-        if service_uuids_whitelist:
-            _bleak_service_uuids_whitelist = tuple(
-                # pylint: disable=protected-access
-                uuid._bleak_uuid
-                for uuid in service_uuids_whitelist
-            )
+        :return: A tuple of `_bleio.Service` objects provided by the remote peripheral.
+        """
 
-        _bleak_services = await self.__bleak_client.get_services()
+        # Fetch the services.
+        bleak_services = await self.__bleak_client.get_services()
+
         # pylint: disable=protected-access
+        if service_uuids_whitelist:
+            filtered_bleak_services = tuple(
+                s
+                for s in bleak_services
+                if _bleio.UUID(s.uuid) in service_uuids_whitelist
+            )
+        else:
+            filtered_bleak_services = bleak_services
+
         return tuple(
-            _bleio.service.Service._from_bleak(self, _bleak_service)
-            for _bleak_service in _bleak_services
-            if _bleak_service.uuid.lower() in _bleak_service_uuids_whitelist
+            _bleio.service.Service._from_bleak(self, bleak_service)
+            for bleak_service in filtered_bleak_services
         )
 
     @property

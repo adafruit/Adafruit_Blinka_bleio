@@ -28,7 +28,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 from bleak.backends.characteristic import (
     BleakGATTCharacteristic,
@@ -44,7 +44,7 @@ Buf = Union[bytes, bytearray, memoryview]
 
 class Characteristic:
     """Stores information about a BLE service characteristic and allows reading
-       and writing of the characteristic's value."""
+    and writing of the characteristic's value."""
 
     BROADCAST = 0x1
     """property: allowed in advertising packets"""
@@ -68,7 +68,7 @@ class Characteristic:
         write_perm: int = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
-        initial_value: Buf = None
+        initial_value: Buf = None,
     ):
         """There is no regular constructor for a Characteristic.  A
         new local Characteristic can be created and attached to a
@@ -98,7 +98,7 @@ class Characteristic:
         write_perm: int = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
-        initial_value: Buf = None
+        initial_value: Buf = None,
     ) -> "Characteristic":
         """Create a new Characteristic object, and add it to this Service.
 
@@ -166,7 +166,7 @@ class Characteristic:
         """An int bitmask representing which properties are set, specified as bitwise or'ing of
         of these possible values.
         `BROADCAST`, `INDICATE`, `NOTIFY`, `READ`, `WRITE`, `WRITE_NO_RESPONSE`.
-    """
+        """
         return self._properties
 
     @property
@@ -219,7 +219,8 @@ class Characteristic:
         if notify:
             adap.adapter.await_bleak(
                 self._service.connection._bleak_client.start_notify(
-                    self._bleak_gatt_characteristic.uuid, self._notify_callback,
+                    self._bleak_gatt_characteristic.uuid,
+                    self._notify_callback,
                 )
             )
         else:
@@ -237,11 +238,12 @@ class Characteristic:
         """Remove a callback to call when a notify happens on this characteristic."""
         self._notify_callbacks.remove(callback)
 
-    def _notify_callback(self, _bleak_uuid: str, data: Buf):
+    # pylint: disable=unused-argument
+    def _notify_callback(self, handle: Optional[int], data: Buf):
         # pylint: disable=protected-access
-        if _bleak_uuid == self.uuid._bleak_uuid:
-            for callback in self._notify_callbacks:
-                callback(data)
+        # TODO: Right now we can't vet the handle, because it may be None.
+        for callback in self._notify_callbacks:
+            callback(data)
 
     def __repr__(self) -> str:
         if self.uuid:

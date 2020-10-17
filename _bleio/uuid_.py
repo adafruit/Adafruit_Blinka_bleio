@@ -46,6 +46,8 @@ _STANDARD_UUID_RE = re.compile(
     r"0000....-0000-1000-8000-00805f9b34fb", flags=re.IGNORECASE
 )
 
+_STANDARD_HEX_UUID_RE = re.compile(r"[0-9a-f]{1,4}", flags=re.IGNORECASE)
+
 _BASE_STANDARD_UUID = (
     b"\xFB\x34\x9B\x5F\x80\x00\x00\x80\x00\x10\x00\x00\x00\x00\x00\x00"
 )
@@ -53,6 +55,26 @@ _BASE_STANDARD_UUID = (
 
 class UUID:
     def __init__(self, uuid: Union[int, Buf, str]):
+        self.__bleak_uuid = None
+
+        if isinstance(uuid, str):
+            if _UUID_RE.fullmatch(uuid):
+                self._size = 16 if _STANDARD_UUID_RE.fullmatch(uuid) else 128
+                uuid = uuid.replace("-", "")
+                self._uuid128 = bytes(
+                    int(uuid[i : i + 2], 16) for i in range(30, -1, -2)
+                )
+                return
+
+            if _STANDARD_HEX_UUID_RE.fullmatch(uuid):
+                # Fall through and reprocess as an int.
+                uuid = int(uuid, 16)
+            else:
+                raise ValueError(
+                    "UUID string not 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' or 'xxxx', but is "
+                    + uuid
+                )
+
         if isinstance(uuid, int):
             if not 0 <= uuid <= 0xFFFF:
                 raise ValueError("UUID integer value must be 0-0xffff")
@@ -79,17 +101,6 @@ class UUID:
                     0x00,
                 )
             )  # 0000
-        elif isinstance(uuid, str):
-            if _UUID_RE.match(uuid):
-                self._size = 16 if _STANDARD_UUID_RE.match(uuid) else 128
-                uuid = uuid.replace("-", "")
-                self._uuid128 = bytes(
-                    int(uuid[i : i + 2], 16) for i in range(30, -1, -2)
-                )
-            else:
-                raise ValueError(
-                    "UUID string not 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'"
-                )
         else:
             try:
                 uuid = memoryview(uuid)
@@ -102,20 +113,16 @@ class UUID:
             self._size = 128
             self._uuid128 = bytes(uuid)
 
-        self.__bleak_uuid = None
-
     @classmethod
-    def _from_bleak(cls, _bleak_uuid: str) -> "UUID":
-        """Bleak UUIDs are all strings.
-        TODO: or are they also uuid.UUID's?
-        """
-        uuid = UUID(_bleak_uuid)
-        uuid.__bleak_uuid = _bleak_uuid  # pylint: disable=protected-access
+    def _from_bleak(cls, bleak_uuid: Any) -> "UUID":
+        """Convert a bleak UUID to a _bleio.UUID."""
+        uuid = UUID(bleak_uuid)
+        uuid.__bleak_uuid = bleak_uuid  # pylint: disable=protected-access
         return uuid
 
     @property
     def _bleak_uuid(self):
-        """Bleak UUID (str or in some cases, uuid.UUID)"""
+        """Bleak UUID"""
         if not self.__bleak_uuid:
             self.__bleak_uuid = str(self)
         return self.__bleak_uuid
