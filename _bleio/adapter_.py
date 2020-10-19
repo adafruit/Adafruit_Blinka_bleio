@@ -31,6 +31,7 @@ from __future__ import annotations
 from typing import Iterable, Optional, Union
 
 import asyncio
+import atexit
 import platform
 import threading
 import time
@@ -83,6 +84,18 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         # Keep a cache of recently scanned devices, to avoid doing double
         # device scanning.
         self._cached_devices = {}
+
+        # Clean up connections, etc. when exiting (even by KeyboardInterrupt)
+        atexit.register(self._cleanup)
+
+    def _cleanup(self):
+        """Clean up connections, so that the underlying OS software does not
+        leave them open.
+        """
+        # Use a copy of the list because each connection will be deleted
+        # on disconnect().
+        for connection in self._connections.copy():
+            connection.disconnect()
 
     @property
     def _use_hcitool(self):
@@ -367,7 +380,6 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         client = BleakClient(device if device else address._bleak_address)
         # connect() takes a timeout, but it's a timeout to do a
         # discover() scan, not an actual connect timeout.
-        # TODO: avoid the second discovery.
         try:
             await client.connect(timeout=timeout)
             # This does not seem to connect reliably.
