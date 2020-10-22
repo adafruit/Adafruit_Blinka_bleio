@@ -1,2 +1,2 @@
 Adafruit-Blinka
-bleak>=0.8.0
+bleak>=0.9.1
