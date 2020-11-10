@@ -175,6 +175,8 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         *,
         scan_response: Buf = None,
         connectable: bool = True,
+        anonymous: bool = False,
+        timeout: int = 0,
         interval: float = 0.1,
     ) -> None:
         raise NotImplementedError("Advertising not implemented")
