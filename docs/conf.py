@@ -25,7 +25,7 @@ autodoc_mock_imports = ["bleak"]
 autoclass_content = "both"
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3.4", None),
+    "python": ("https://docs.python.org/3.7", None),
     "CircuitPython": ("https://circuitpython.readthedocs.io/en/latest/", None),
 }
 

@@ -28,14 +28,16 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
-from typing import Iterable, Union
+from typing import Iterable, Optional, Union
 
 import asyncio
+import atexit
 import platform
 import threading
 import time
 
 from bleak import BleakClient, BleakScanner
+from bleak.backends.device import BLEDevice
 
 from _bleio.address import Address
 from _bleio.connection import Connection
@@ -53,7 +55,7 @@ Buf = Union[bytes, bytearray, memoryview]
 adapter = None  # pylint: disable=invalid-name
 
 
-class Adapter:
+class Adapter:  # pylint: disable=too-many-instance-attributes
     # Do blocking scans in chunks of this interval.
     _SCAN_INTERVAL = 0.25
 
@@ -63,6 +65,8 @@ class Adapter:
         self._name = platform.node()
         # Unbounded FIFO for scan results
         self._scanning_in_progress = False
+        # Created on demand in self._bleak_thread context.
+        self._scanner = None
         self._connections = []
         self._bleak_loop = None
         self._bleak_thread = threading.Thread(target=self._run_bleak_loop)
@@ -76,6 +80,22 @@ class Adapter:
         # Not known yet.
         self._hcitool_is_usable = None
         self._hcitool = None
+
+        # Keep a cache of recently scanned devices, to avoid doing double
+        # device scanning.
+        self._cached_devices = {}
+
+        # Clean up connections, etc. when exiting (even by KeyboardInterrupt)
+        atexit.register(self._cleanup)
+
+    def _cleanup(self):
+        """Clean up connections, so that the underlying OS software does not
+        leave them open.
+        """
+        # Use a copy of the list because each connection will be deleted
+        # on disconnect().
+        for connection in self._connections.copy():
+            connection.disconnect()
 
     @property
     def _use_hcitool(self):
@@ -155,7 +175,9 @@ class Adapter:
         *,
         scan_response: Buf = None,
         connectable: bool = True,
-        interval: float = 0.1
+        anonymous: bool = False,
+        timeout: int = 0,
+        interval: float = 0.1,
     ) -> None:
         raise NotImplementedError("Advertising not implemented")
 
@@ -173,7 +195,7 @@ class Adapter:
         interval: float = 0.1,  # pylint: disable=unused-argument
         window: float = 0.1,  # pylint: disable=unused-argument
         minimum_rssi: int = -80,
-        active: bool = True  # pylint: disable=unused-argument
+        active: bool = True,  # pylint: disable=unused-argument
     ) -> Iterable:
         """
         Starts a BLE scan and returns an iterator of results. Advertisements and scan responses are
@@ -196,14 +218,20 @@ class Adapter:
         :returns: an iterable of `_bleio.ScanEntry` objects
         :rtype: iterable"""
 
+        # Remember only the most recently advertised devices.
+        # In the future, we might remember these for a few minutes.
+        self._clear_device_cache()
+
         if self._use_hcitool:
             for scan_entry in self._start_scan_hcitool(
-                prefixes, timeout=timeout, minimum_rssi=minimum_rssi, active=active,
+                prefixes,
+                timeout=timeout,
+                minimum_rssi=minimum_rssi,
+                active=active,
             ):
                 yield scan_entry
             return
 
-        scanner = BleakScanner(loop=self._bleak_loop)
         self._scanning_in_progress = True
 
         start = time.time()
@@ -211,10 +239,13 @@ class Adapter:
             timeout is None or time.time() - start < timeout
         ):
             for device in self.await_bleak(
-                self._scan_for_interval(scanner, self._SCAN_INTERVAL)
+                self._scan_for_interval(self._SCAN_INTERVAL)
             ):
-                if not device or device.rssi < minimum_rssi:
+                if not device or (
+                    device.rssi is not None and device.rssi < minimum_rssi
+                ):
                     continue
+                self._cache_device(device)
                 scan_entry = ScanEntry._from_bleak(  # pylint: disable=protected-access
                     device
                 )
@@ -263,7 +294,12 @@ class Adapter:
         return None
 
     def _start_scan_hcitool(
-        self, prefixes: Buf, *, timeout: float, minimum_rssi, active: bool,
+        self,
+        prefixes: Buf,
+        *,
+        timeout: float,
+        minimum_rssi,
+        active: bool,
     ) -> Iterable:
         """hcitool scanning (only on Linux)"""
         # hcidump outputs the full advertisement data, assuming it's run privileged.
@@ -305,14 +341,17 @@ class Adapter:
             returncode = self._hcitool.poll()
         self.stop_scan()
 
-    async def _scan_for_interval(self, scanner, interval: float) -> Iterable[ScanEntry]:
+    async def _scan_for_interval(self, interval: float) -> Iterable[ScanEntry]:
         """Scan advertisements for the given interval and return ScanEntry objects
         for all advertisements heard.
         """
-        await scanner.start()
+        if not self._scanner:
+            self._scanner = BleakScanner(loop=self._bleak_loop)
+
+        await self._scanner.start()
         await asyncio.sleep(interval)
-        await scanner.stop()
-        return await scanner.get_discovered_devices()
+        await self._scanner.stop()
+        return await self._scanner.get_discovered_devices()
 
     def stop_scan(self) -> None:
         """Stop scanning before timeout may have occurred."""
@@ -322,6 +361,7 @@ class Adapter:
                 self._hcitool.wait()
             self._hcitool = None
         self._scanning_in_progress = False
+        self._scanner = None
 
     @property
     def connected(self):
@@ -336,10 +376,12 @@ class Adapter:
 
     # pylint: disable=protected-access
     async def _connect_async(self, address: Address, *, timeout: float) -> None:
-        client = BleakClient(address._bleak_address)
+        device = self._cached_device(address)
+        # Use cached device if possible, to avoid having BleakClient do
+        # a scan again.
+        client = BleakClient(device if device else address._bleak_address)
         # connect() takes a timeout, but it's a timeout to do a
         # discover() scan, not an actual connect timeout.
-        # TODO: avoid the second discovery.
         try:
             await client.connect(timeout=timeout)
             # This does not seem to connect reliably.
@@ -361,6 +403,16 @@ class Adapter:
         raise NotImplementedError(
             "Use the host computer's BLE comamnds to reset bonding information"
         )
+
+    def _cached_device(self, address: Address) -> Optional[BLEDevice]:
+        """Return a device recently found during scanning with the given address."""
+        return self._cached_devices.get(address)
+
+    def _clear_device_cache(self):
+        self._cached_devices.clear()
+
+    def _cache_device(self, device: BLEDevice):
+        self._cached_devices[device.address] = device
 
 
 # Create adapter singleton.

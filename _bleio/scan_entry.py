@@ -57,7 +57,7 @@ class ScanEntry:
         advertisement_bytes: Buf = None,
         connectable: bool,
         scan_response: bool,
-        data_dict=None
+        data_dict=None,
     ):
         """Should not be instantiated directly. Use `_bleio.Adapter.start_scan`."""
         self._address = address
