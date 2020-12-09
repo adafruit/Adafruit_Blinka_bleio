@@ -114,7 +114,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                     )
                     # Succeeded.
                     self._hcitool_is_usable = True
-                except:
+                except (subprocess.SubprocessError, FileNotFoundError):
                     # Lots of things can go wrong:
                     # no hcitool, no privileges (causes non-zero return code), too slow, etc.
                     pass
