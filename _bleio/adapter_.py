@@ -100,7 +100,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
 
     @property
     def _use_hcitool(self):
-        """ Determines whether to use the hcitool backend or default bleak, based on whether
+        """Determines whether to use the hcitool backend or default bleak, based on whether
         we want to and can use hcitool.
         """
         if self._hcitool_is_usable is None:
@@ -129,9 +129,13 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                 elif self.BLE_BACKEND == "hcitool":
                     if not self._hcitool_is_usable:
                         # User wants hcitool, but it's not working. Raise an exception.
-                        raise EnvironmentError("BLE_BACKEND set to 'hcitool', but hcitool is unavailable")
+                        raise EnvironmentError(
+                            "BLE_BACKEND set to 'hcitool', but hcitool is unavailable"
+                        )
                 else:
-                    raise ValueError("BLE_BACKEND setting not recognized. Should be 'hcitool' or 'bleak'.")
+                    raise ValueError(
+                        "BLE_BACKEND setting not recognized. Should be 'hcitool' or 'bleak'."
+                    )
 
         return self._hcitool_is_usable
 
