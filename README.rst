@@ -90,8 +90,8 @@ behavior, you can do the following:
 .. code-block:: python
 
     ble = BLERadio()
-    ble._adapter.BLE_BACKEND = "bleak" # Forces bleak even if hcitool works.
-    # ble._adapter.BLE_BACKEND = "hcitool" # Forces hcitool. Raises exception if unavailable.
+    ble._adapter.ble_backend = "bleak" # Forces bleak even if hcitool works.
+    # ble._adapter.ble_backend = "hcitool" # Forces hcitool. Raises exception if unavailable.
 
 To add yourself to the ``bluetooth`` group do:
 

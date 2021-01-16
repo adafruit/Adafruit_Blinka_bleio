@@ -80,7 +80,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         # Not known yet.
         self._hcitool_is_usable = None
         self._hcitool = None
-        self.BLE_BACKEND = None
+        self.ble_backend = None
 
         # Keep a cache of recently scanned devices, to avoid doing double
         # device scanning.
@@ -122,19 +122,19 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                     # Lots of things can go wrong:
                     # no hcitool, no privileges (causes non-zero return code), too slow, etc.
                     pass
-            if self.BLE_BACKEND:
-                if self.BLE_BACKEND == "bleak":
+            if self.ble_backend:
+                if self.ble_backend == "bleak":
                     # User requests bleak, so ignore hcitool.
                     self._hcitool_is_usable = False
-                elif self.BLE_BACKEND == "hcitool":
+                elif self.ble_backend == "hcitool":
                     if not self._hcitool_is_usable:
                         # User wants hcitool, but it's not working. Raise an exception.
                         raise EnvironmentError(
-                            "BLE_BACKEND set to 'hcitool', but hcitool is unavailable"
+                            "ble_backend set to 'hcitool', but hcitool is unavailable"
                         )
                 else:
                     raise ValueError(
-                        "BLE_BACKEND setting not recognized. Should be 'hcitool' or 'bleak'."
+                        "ble_backend setting not recognized. Should be 'hcitool' or 'bleak'."
                     )
 
         return self._hcitool_is_usable
