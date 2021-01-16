@@ -88,6 +88,7 @@ If you **explicitly** want to disable hcitool i.e. for testing, you can
 do something like this:
 
 .. code-block:: python
+
     ble = BLERadio()
     ble._adapter._hcitool_is_usable = False # Forces bleak even if hcitool works.
 
