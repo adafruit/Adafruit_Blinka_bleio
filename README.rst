@@ -84,6 +84,15 @@ not need to add these permissions. This library falls back to using**
 ``bleak`` **for regular scanning if** ``hcitool`` **does not have
 these extra permissions.**
 
+If you **explicitly** want to choose the backend to ensure consistent
+behavior, you can do the following:
+
+.. code-block:: python
+
+    ble = BLERadio()
+    ble._adapter.ble_backend = "bleak" # Forces bleak even if hcitool works.
+    # ble._adapter.ble_backend = "hcitool" # Forces hcitool. Raises exception if unavailable.
+
 To add yourself to the ``bluetooth`` group do:
 
 .. code-block:: shell

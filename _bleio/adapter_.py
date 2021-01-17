@@ -80,6 +80,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         # Not known yet.
         self._hcitool_is_usable = None
         self._hcitool = None
+        self.ble_backend = None
 
         # Keep a cache of recently scanned devices, to avoid doing double
         # device scanning.
@@ -99,6 +100,9 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
 
     @property
     def _use_hcitool(self):
+        """Determines whether to use the hcitool backend or default bleak, based on whether
+        we want to and can use hcitool.
+        """
         if self._hcitool_is_usable is None:
             self._hcitool_is_usable = False
             if platform.system() == "Linux":
@@ -118,6 +122,20 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                     # Lots of things can go wrong:
                     # no hcitool, no privileges (causes non-zero return code), too slow, etc.
                     pass
+            if self.ble_backend:
+                if self.ble_backend == "bleak":
+                    # User requests bleak, so ignore hcitool.
+                    self._hcitool_is_usable = False
+                elif self.ble_backend == "hcitool":
+                    if not self._hcitool_is_usable:
+                        # User wants hcitool, but it's not working. Raise an exception.
+                        raise EnvironmentError(
+                            "ble_backend set to 'hcitool', but hcitool is unavailable"
+                        )
+                else:
+                    raise ValueError(
+                        "ble_backend setting not recognized. Should be 'hcitool' or 'bleak'."
+                    )
 
         return self._hcitool_is_usable
 
