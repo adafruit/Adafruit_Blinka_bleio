@@ -225,7 +225,7 @@ class Characteristic:
             )
         else:
             adap.adapter.await_bleak(
-                self._service._bleak_client.stop_notify(
+                self._service.connection._bleak_client.stop_notify(
                     self._bleak_gatt_characteristic.uuid
                 )
             )
