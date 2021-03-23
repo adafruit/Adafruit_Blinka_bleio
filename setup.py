@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Copyright (c) 2020 Dan Halbert for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 """A setuptools based setup module.
 
 See:
