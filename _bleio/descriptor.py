@@ -40,7 +40,7 @@ class Descriptor:
 
         """There is no regular constructor for a Descriptor. A new local Descriptor can be created
         and attached to a Characteristic by calling `add_to_characteristic()`.
-        Remote Descriptor objects are created by `Connection.discover_remote_services`
+        Remote Descriptor objects are created by `_bleio.Connection.discover_remote_services`
         as part of remote Characteristics in the remote Services that are discovered.
         """
         self._uuid = uuid
@@ -73,10 +73,10 @@ class Descriptor:
         :param int read_perm: Specifies whether the descriptor can be read by a client,
            and if so, which security mode is required.
            Must be one of the integer values
-           `Attribute.NO_ACCESS`, `Attribute.OPEN`,
-           `Attribute.ENCRYPT_NO_MITM`, `Attribute.ENCRYPT_WITH_MITM`,
-           `Attribute.LESC_ENCRYPT_WITH_MITM`,
-           `Attribute.SIGNED_NO_MITM`, or `Attribute.SIGNED_WITH_MITM`.
+           `_bleio.Attribute.NO_ACCESS`, `_bleio.Attribute.OPEN`,
+           `_bleio.Attribute.ENCRYPT_NO_MITM`, `_bleio.Attribute.ENCRYPT_WITH_MITM`,
+           `_bleio.Attribute.LESC_ENCRYPT_WITH_MITM`,
+           `_bleio.Attribute.SIGNED_NO_MITM`, or `_bleio.Attribute.SIGNED_WITH_MITM`.
         :param int write_perm: Specifies whether the descriptor can be written by a client,
            and if so, which security mode is required.
            Values allowed are the same as ``read_perm``.
