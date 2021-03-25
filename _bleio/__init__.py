@@ -18,7 +18,7 @@ from typing import Optional
 from _bleio.address import Address
 from _bleio.attribute import Attribute
 from _bleio.characteristic_buffer import CharacteristicBuffer
-from _bleio.common import adapter, Adapter, Connection, Service
+from _bleio.common import adapter, Adapter, Characteristic, Connection, Service
 from _bleio.exceptions import (
     BluetoothError,
     ConnectionError,
