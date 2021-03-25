@@ -13,7 +13,8 @@ from __future__ import annotations
 import re
 from typing import Union
 
-from _bleio import Address, UUID
+from .address import Address
+from .uuid_ import UUID
 
 Buf = Union[bytes, bytearray, memoryview]
 

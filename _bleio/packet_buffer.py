@@ -12,7 +12,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 import queue
 from typing import Union
 
-from _bleio import Characteristic
+from _bleio.common import Characteristic
 
 Buf = Union[bytes, bytearray, memoryview]
 

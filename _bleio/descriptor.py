@@ -14,9 +14,8 @@ from typing import Union
 
 from bleak.backends.descriptor import BleakGATTDescriptor
 
-import _bleio.adapter_ as adap
 from _bleio.attribute import Attribute
-from _bleio.characteristic import Characteristic
+from _bleio.common import adapter, Characteristic
 from _bleio.uuid_ import UUID
 
 Buf = Union[bytes, bytearray, memoryview]
@@ -41,7 +40,7 @@ class Descriptor:
 
         """There is no regular constructor for a Descriptor. A new local Descriptor can be created
         and attached to a Characteristic by calling `add_to_characteristic()`.
-        Remote Descriptor objects are created by `_bleio.Connection.discover_remote_services`
+        Remote Descriptor objects are created by `Connection.discover_remote_services`
         as part of remote Characteristics in the remote Services that are discovered.
         """
         self._uuid = uuid
@@ -68,15 +67,16 @@ class Descriptor:
 
         """Create a new Descriptor object, and add it to this Service.
 
-        :param Characteristic characteristic: The characteristic that will hold this descriptor
+        :param Characteristic characteristic:
+           The characteristic that will hold this descriptor
         :param UUID uuid: The uuid of the descriptor
         :param int read_perm: Specifies whether the descriptor can be read by a client,
            and if so, which security mode is required.
            Must be one of the integer values
-           `_bleio.Attribute.NO_ACCESS`, `_bleio.Attribute.OPEN`,
-           `_bleio.Attribute.ENCRYPT_NO_MITM`, `_bleio.Attribute.ENCRYPT_WITH_MITM`,
-           `_bleio.Attribute.LESC_ENCRYPT_WITH_MITM`,
-           `_bleio.Attribute.SIGNED_NO_MITM`, or `_bleio.Attribute.SIGNED_WITH_MITM`.
+           `Attribute.NO_ACCESS`, `Attribute.OPEN`,
+           `Attribute.ENCRYPT_NO_MITM`, `Attribute.ENCRYPT_WITH_MITM`,
+           `Attribute.LESC_ENCRYPT_WITH_MITM`,
+           `Attribute.SIGNED_NO_MITM`, or `Attribute.SIGNED_WITH_MITM`.
         :param int write_perm: Specifies whether the descriptor can be written by a client,
            and if so, which security mode is required.
            Values allowed are the same as ``read_perm``.
@@ -129,7 +129,7 @@ class Descriptor:
     @property
     def value(self) -> bytes:
         """The value of this descriptor."""
-        return adap.adapter.await_bleak(
+        return adapter.await_bleak(
             # pylint: disable=protected-access
             self.characteristic.service.connection._bleak_client.read_gatt_descriptor(
                 self.uuid.string
@@ -138,7 +138,7 @@ class Descriptor:
 
     @value.setter
     def value(self, val) -> None:
-        adap.adapter.await_bleak(
+        adapter.await_bleak(
             # pylint: disable=protected-access
             self.characteristic.service.connection._bleak_client.write_gatt_descriptor(
                 self.uuid.string, val

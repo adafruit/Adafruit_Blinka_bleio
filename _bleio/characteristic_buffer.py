@@ -16,8 +16,7 @@ import asyncio
 import queue
 import time
 
-import _bleio.adapter_ as adap
-from _bleio.characteristic import Characteristic
+from _bleio.common import adapter, Characteristic
 
 Buf = Union[bytes, bytearray, memoryview]
 
@@ -89,7 +88,7 @@ class CharacteristicBuffer:
                 idx += 1
             except queue.Empty:
                 # Let the BLE code run for a bit, and try again.
-                adap.adapter.await_bleak(asyncio.sleep(0.1))
+                adapter.await_bleak(asyncio.sleep(0.1))
 
         return idx
 
@@ -108,7 +107,7 @@ class CharacteristicBuffer:
                 line.append(b)
             except queue.Empty:
                 # Let the BLE code run for a bit, and try again.
-                adap.adapter.await_bleak(asyncio.sleep(0.1))
+                adapter.await_bleak(asyncio.sleep(0.1))
                 continue
             if b == 0x0A:  # newline
                 break

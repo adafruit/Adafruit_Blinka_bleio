@@ -14,21 +14,23 @@ _bleio implementation for Adafruit_Blinka_bleio
 
 from typing import Optional
 
-# These are in dependency order to avoid circular import issues.
+# pylint: disable=redefined-builtin
+from _bleio.address import Address
+from _bleio.attribute import Attribute
+from _bleio.characteristic_buffer import CharacteristicBuffer
+from _bleio.common import adapter, Adapter, Connection, Service
+from _bleio.exceptions import (
+    BluetoothError,
+    ConnectionError,
+    RoleError,
+    SecurityError,
+)
+from _bleio.packet_buffer import PacketBuffer
+from _bleio.scan_entry import ScanEntry
+from _bleio.uuid_ import UUID
 
-from _bleio.exceptions import *  # pylint: disable=redefined-builtin
-from _bleio.uuid_ import *
-from _bleio.address import *
-from _bleio.adapter_ import *
-from _bleio.attribute import *
-from _bleio.characteristic import *
-from _bleio.service import *
-from _bleio.connection import *
-from _bleio.descriptor import *
-from _bleio.scan_entry import *
-
-from _bleio.characteristic_buffer import *
-from _bleio.packet_buffer import *
+__version__ = "0.0.0-auto.0"
+__repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
 
 
 def set_adapter(new_adapter: Optional[Adapter]) -> None:
@@ -36,7 +38,3 @@ def set_adapter(new_adapter: Optional[Adapter]) -> None:
     Raises `NotImplementedError` when the adapter is a singleton and cannot be set.
     """
     raise NotImplementedError("Not settable")
-
-
-__version__ = "0.0.0-auto.0"
-__repo__ = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"
