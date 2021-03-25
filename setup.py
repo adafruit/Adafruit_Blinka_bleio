@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Copyright (c) 2020 Dan Halbert for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 """A setuptools based setup module.
 
 See:
@@ -29,7 +33,7 @@ setup(
     # Author details
     author="Adafruit Industries",
     author_email="circuitpython@adafruit.com",
-    install_requires=["bleak"],
+    install_requires=["adafruit-blinka", "bleak==0.11.0"],
     # Choose your license
     license="MIT",
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers

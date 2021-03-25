@@ -1,24 +1,6 @@
-# The MIT License (MIT)
+# SPDX-FileCopyrightText: Copyright (c) 2020 Dan Halbert for Adafruit Industries
 #
-# Copyright (c) 2020 Dan Halbert for Adafruit Industries LLC
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+# SPDX-License-Identifier: MIT
 """
 `_bleio.descriptor`
 =======================================================================
@@ -32,9 +14,8 @@ from typing import Union
 
 from bleak.backends.descriptor import BleakGATTDescriptor
 
-import _bleio.adapter_ as adap
 from _bleio.attribute import Attribute
-from _bleio.characteristic import Characteristic
+from _bleio.common import adapter, Characteristic
 from _bleio.uuid_ import UUID
 
 Buf = Union[bytes, bytearray, memoryview]
@@ -86,7 +67,8 @@ class Descriptor:
 
         """Create a new Descriptor object, and add it to this Service.
 
-        :param Characteristic characteristic: The characteristic that will hold this descriptor
+        :param Characteristic characteristic:
+           The characteristic that will hold this descriptor
         :param UUID uuid: The uuid of the descriptor
         :param int read_perm: Specifies whether the descriptor can be read by a client,
            and if so, which security mode is required.
@@ -147,7 +129,7 @@ class Descriptor:
     @property
     def value(self) -> bytes:
         """The value of this descriptor."""
-        return adap.adapter.await_bleak(
+        return adapter.await_bleak(
             # pylint: disable=protected-access
             self.characteristic.service.connection._bleak_client.read_gatt_descriptor(
                 self.uuid.string
@@ -156,7 +138,7 @@ class Descriptor:
 
     @value.setter
     def value(self, val) -> None:
-        adap.adapter.await_bleak(
+        adapter.await_bleak(
             # pylint: disable=protected-access
             self.characteristic.service.connection._bleak_client.write_gatt_descriptor(
                 self.uuid.string, val

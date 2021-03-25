@@ -7,7 +7,7 @@
 .. automodule:: _bleio
    :members:
 
-.. automodule:: _bleio.adapter_
+.. automodule:: _bleio.common
    :members:
 
 .. automodule:: _bleio.address
@@ -16,13 +16,7 @@
 .. automodule:: _bleio.attribute
    :members:
 
-.. automodule:: _bleio.characteristic
-   :members:
-
 .. automodule:: _bleio.characteristic_buffer
-   :members:
-
-.. automodule:: _bleio.connection
    :members:
 
 .. automodule:: _bleio.descriptor
@@ -35,9 +29,6 @@
    :members:
 
 .. automodule:: _bleio.scan_entry
-   :members:
-
-.. automodule:: _bleio.service
    :members:
 
 .. automodule:: _bleio.uuid_
