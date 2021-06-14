@@ -310,6 +310,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         """hcitool scanning (only on Linux)"""
         # hcidump outputs the full advertisement data, assuming it's run privileged.
         # Since hcitool is privileged, we assume hcidump is too.
+        # pylint: disable=consider-using-with
         hcidump = subprocess.Popen(
             ["hcidump", "--raw", "hci"],
             stdin=subprocess.DEVNULL,
@@ -324,6 +325,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+        # pylint: enable=consider-using-with
         # Throw away the first two output lines of hcidump because they are version info.
         hcidump.stdout.readline()
         hcidump.stdout.readline()
