@@ -359,7 +359,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         await self._scanner.start()
         await asyncio.sleep(interval)
         await self._scanner.stop()
-        return await self._scanner.get_discovered_devices()
+        return self._scanner.discovered_devices
 
     def stop_scan(self) -> None:
         """Stop scanning before timeout may have occurred."""
