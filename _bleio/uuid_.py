@@ -100,7 +100,7 @@ class UUID:
     def _from_bleak(cls, bleak_uuid: Any) -> "UUID":
         """Convert a bleak UUID to a _bleio.UUID."""
         uuid = UUID(bleak_uuid)
-        uuid.__bleak_uuid = bleak_uuid  # pylint: disable=protected-access
+        uuid.__bleak_uuid = bleak_uuid  # pylint: disable=unused-private-member
         return uuid
 
     @property
@@ -158,7 +158,7 @@ class UUID:
 
     def __str__(self) -> str:
         return (
-            "{:02x}{:02x}{:02x}{:02x}-"
+            "{:02x}{:02x}{:02x}{:02x}-"  # pylint: disable=consider-using-f-string
             "{:02x}{:02x}-"
             "{:02x}{:02x}-"
             "{:02x}{:02x}-"
@@ -167,5 +167,5 @@ class UUID:
 
     def __repr__(self) -> str:
         if self.size == 16:
-            return "UUID({:#04x})".format(self.uuid16)
-        return "UUID({})".format(str(self))
+            return f"UUID({self.uuid16:#04x})"
+        return f"UUID({self!s})"

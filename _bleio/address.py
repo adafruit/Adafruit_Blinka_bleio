@@ -34,18 +34,16 @@ class Address:
     ):
         """Bleak uses strings for addresses. The string may be a 6-byte MAC address,
         or it may be a UUID on MacOS."""
-
-        self._address_bytes = None
-        self._string = None
-
         if (address and string) or (not address and not string):
             raise ValueError("Supply address or string but not both:")
+
+        self._string = string
+        self._address_bytes = None
+
         if address:
             self._address_bytes = bytes(address)
             if len(self._address_bytes) != 6:
                 raise ValueError("Address must be 6 bytes long")
-        elif string:
-            self._string = string
         if not self.PUBLIC <= address_type <= self.RANDOM_PRIVATE_NON_RESOLVABLE:
             raise ValueError("Address type out of range")
         self._type = address_type
@@ -59,7 +57,7 @@ class Address:
         """Original string, or if not given, address in "xx:xx:xx:xx:xx:xx" format."""
         if not self._string:
             self._string = ":".join(
-                "{:02x}".format(b) for b in reversed(self.address_bytes)
+                f"{b:02x}" for b in reversed(self.address_bytes)
             )
         return self._string
 
@@ -70,7 +68,7 @@ class Address:
         """
         if not self._address_bytes:
             # Attempt to convert to address bytes.
-            match = self._MAC_ADDRESS_RE.fullmatch(self._string)
+            match = self._MAC_ADDRESS_RE.fullmatch(self._string)  # type: ignore[arg-type]
             if match:
                 self._address_bytes = bytes(
                     int(b, 16) for b in reversed(match.groups())
