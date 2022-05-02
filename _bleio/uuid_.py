@@ -169,8 +169,3 @@ class UUID:
         if self.size == 16:
             return "UUID({:#04x})".format(self.uuid16)
         return "UUID({})".format(str(self))
-
-
-UUID.BASE_STANDARD_UUID = UUID("00000000-0000-1000-8000-00805F9B34FB")
-"""16 bit xxyy UUIDs are shorthand for the
-base 128-bit UUID 0000yyxx-0000-1000-8000-00805F9B34FB."""
