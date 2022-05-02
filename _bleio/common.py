@@ -10,7 +10,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
-from typing import Callable, Iterable, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 import asyncio
 import atexit
@@ -18,13 +18,14 @@ import platform
 import threading
 import time
 
-from bleak import BleakClient, BleakScanner
-from bleak.backends.characteristic import (
+from bleak import BleakClient, BleakScanner  # type: ignore[import]
+from bleak.backends.characteristic import (  # type: ignore[import]
     BleakGATTCharacteristic,
     GattCharacteristicsFlags,
 )
-from bleak.backends.device import BLEDevice
-from bleak.backends.service import BleakGATTService
+from bleak.backends.device import BLEDevice  # type: ignore[import]
+from bleak.backends.service import BleakGATTService  # type: ignore[import]
+
 
 from _bleio.address import Address
 from _bleio.attribute import Attribute
@@ -148,7 +149,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         self._enabled = value
 
     @property
-    def address(self) -> Address:
+    def address(self) -> Optional[Address]:
         if platform.system() == "Linux":
             try:
                 lines = subprocess.run(
@@ -303,7 +304,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         self,
         prefixes: Buf,
         *,
-        timeout: float,
+        timeout: Optional[float],
         minimum_rssi,
         active: bool,
     ) -> Iterable:
@@ -327,15 +328,15 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
             )
         # pylint: enable=consider-using-with
         # Throw away the first two output lines of hcidump because they are version info.
-        hcidump.stdout.readline()
-        hcidump.stdout.readline()
+        hcidump.stdout.readline()  # type: ignore[union-attr]
+        hcidump.stdout.readline()  # type: ignore[union-attr]
         returncode = self._hcitool.poll()
         start_time = time.monotonic()
-        buffered = []
+        buffered: List[bytes] = []
         while returncode is None and (
-            not timeout or time.monotonic() - start_time < timeout
+            timeout is None or time.monotonic() - start_time < timeout
         ):
-            line = hcidump.stdout.readline()
+            line = hcidump.stdout.readline()  # type: ignore[union-attr]
             # print(line, line[0])
             if line[0] != 32:  # 32 is ascii for space
                 if buffered:
@@ -383,7 +384,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         return self.await_bleak(self._connect_async(address, timeout=timeout))
 
     # pylint: disable=protected-access
-    async def _connect_async(self, address: Address, *, timeout: float) -> None:
+    async def _connect_async(self, address: Address, *, timeout: float) -> Connection:
         device = self._cached_device(address)
         # Use cached device if possible, to avoid having BleakClient do
         # a scan again.
@@ -450,8 +451,8 @@ class Characteristic:
         *,
         uuid: UUID,
         properties: int = 0,
-        read_perm: int = Attribute.OPEN,
-        write_perm: int = Attribute.OPEN,
+        read_perm: Attribute = Attribute.OPEN,
+        write_perm: Attribute = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
         initial_value: Buf = None,

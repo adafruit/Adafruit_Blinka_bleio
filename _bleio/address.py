@@ -56,9 +56,7 @@ class Address:
     def string(self) -> str:
         """Original string, or if not given, address in "xx:xx:xx:xx:xx:xx" format."""
         if not self._string:
-            self._string = ":".join(
-                f"{b:02x}" for b in reversed(self.address_bytes)
-            )
+            self._string = ":".join(f"{b:02x}" for b in reversed(self.address_bytes))
         return self._string
 
     @property
