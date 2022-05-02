@@ -124,7 +124,7 @@ class UUID:
     def size(self) -> int:
         return self._size
 
-    def pack_into(self, buffer, offset=0):
+    def pack_into(self, buffer, offset=0) -> None:
         byte_size = self.size // 8
         if len(buffer) - offset < byte_size:
             raise IndexError("Buffer offset too small")
@@ -134,7 +134,7 @@ class UUID:
             buffer[offset:byte_size] = self.uuid128
 
     @property
-    def is_standard_uuid(self):
+    def is_standard_uuid(self) -> bool:
         """True if this is a standard 16-bit UUID (0000xxxx-0000-1000-8000-00805F9B34FB)
         even if it's 128-bit."""
         return self.size == 16 or (

@@ -10,7 +10,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
-from typing import Callable, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Set, Union
 
 import asyncio
 import atexit
@@ -40,11 +40,9 @@ if platform.system() == "Linux":
 
 Buf = Union[bytes, bytearray, memoryview]
 
-# Singleton _bleio.adapter is defined after class Adapter.
-adapter = None  # pylint: disable=invalid-name
-
 
 class Adapter:  # pylint: disable=too-many-instance-attributes
+    """Singleton _bleio.adapter is defined after class Adapter."""
     # Do blocking scans in chunks of this interval.
     _SCAN_INTERVAL = 0.25
 
@@ -78,7 +76,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         # Clean up connections, etc. when exiting (even by KeyboardInterrupt)
         atexit.register(self._cleanup)
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """Clean up connections, so that the underlying OS software does not
         leave them open.
         """
@@ -88,7 +86,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
             connection.disconnect()
 
     @property
-    def _use_hcitool(self):
+    def _use_hcitool(self) -> bool:
         """Determines whether to use the hcitool backend or default bleak, based on whether
         we want to and can use hcitool.
         """
@@ -128,13 +126,13 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
 
         return self._hcitool_is_usable
 
-    def _run_bleak_loop(self):
+    def _run_bleak_loop(self) -> None:
         self._bleak_loop = asyncio.new_event_loop()
         # Event loop is now available.
         self._bleak_thread_ready.set()
         self._bleak_loop.run_forever()
 
-    def await_bleak(self, coro, timeout=None):
+    def await_bleak(self, coro, timeout: float = None):
         """Call an async routine in the bleak thread from sync code, and await its result."""
         # This is a concurrent.Future.
         future = asyncio.run_coroutine_threadsafe(coro, self._bleak_loop)
@@ -145,7 +143,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         return self._enabled
 
     @enabled.setter
-    def enabled(self, value: bool):
+    def enabled(self, value: bool) -> None:
         self._enabled = value
 
     @property
@@ -173,7 +171,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         return self._name
 
     @name.setter
-    def name(self, value: str):
+    def name(self, value: str) -> None:
         self._name = value
 
     def start_advertising(
@@ -261,7 +259,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                 yield scan_entry
 
     @staticmethod
-    def _parse_hcidump_data(buffered, prefixes, minimum_rssi, active):
+    def _parse_hcidump_data(buffered: List[bytes], prefixes: bytes, minimum_rssi: int, active: bool):
         # > is controller to host, 04 is for an HCI Event packet, and 3E is an LE meta-event
         if buffered[0].startswith(b"> 04 3E"):
             subevent_code = int(buffered[0][11:13], 16)
@@ -305,7 +303,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         prefixes: Buf,
         *,
         timeout: Optional[float],
-        minimum_rssi,
+        minimum_rssi: int,
         active: bool,
     ) -> Iterable:
         """hcitool scanning (only on Linux)"""
@@ -373,7 +371,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         self._scanner = None
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         return bool(self._connections)
 
     @property
@@ -417,10 +415,10 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         """Return a device recently found during scanning with the given address."""
         return self._cached_devices.get(address)
 
-    def _clear_device_cache(self):
+    def _clear_device_cache(self) -> None:
         self._cached_devices.clear()
 
-    def _cache_device(self, device: BLEDevice):
+    def _cache_device(self, device: BLEDevice) -> Dict[str, BLEDevice]:
         self._cached_devices[device.address] = device
 
 
@@ -469,10 +467,10 @@ class Characteristic:
         self._max_length = max_length
         self._fixed_length = fixed_length
         self._initial_value = initial_value
-        self._service = None
-        self._descriptors = ()
+        self._service: Optional[Service] = None
+        self._descriptors: Tuple["Descriptor"] = ()  # type: ignore[name-defined,assignment]
         self._bleak_gatt_characteristic = None
-        self._notify_callbacks = set()
+        self._notify_callbacks: Set[Callable[[Buf], None]] = set()
 
     @classmethod
     def add_to_service(
@@ -481,8 +479,8 @@ class Characteristic:
         uuid: UUID,
         *,
         properties: int = 0,
-        read_perm: int = Attribute.OPEN,
-        write_perm: int = Attribute.OPEN,
+        read_perm: Attribute = Attribute.OPEN,
+        write_perm: Attribute = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
         initial_value: Buf = None,
@@ -527,7 +525,7 @@ class Characteristic:
     @classmethod
     def _from_bleak(
         cls, service: "Service", _bleak_characteristic: BleakGATTCharacteristic
-    ):
+    ) -> "Characteristic":
         properties = 0
         for prop in _bleak_characteristic.properties:
             properties |= GattCharacteristicsFlags[prop.replace("-", "_")].value
@@ -544,7 +542,7 @@ class Characteristic:
         # pylint: enable=protected-access
         return charac
 
-    def _bleak_characteristic(self):
+    def _bleak_characteristic(self) -> BleakGATTCharacteristic:
         """BleakGATTCharacteristic object"""
         return self._bleak_gatt_characteristic
 
@@ -584,13 +582,15 @@ class Characteristic:
         )
 
     @property
-    def descriptors(self) -> Tuple["Descriptor"]:
+    def descriptors(self) -> Tuple["Descriptor"]:  # type: ignore[name-defined]
         """A tuple of :py:class:~`Descriptor` that describe this characteristic. (read-only)"""
         return self._descriptors
 
     @property
     def service(self) -> "Service":
         """The Service this Characteristic is a part of."""
+        if self._service is None:
+            raise ValueError("Characteristic not added to a Service")
         return self._service
 
     def set_cccd(self, *, notify: bool = False, indicate: bool = False) -> None:
@@ -605,7 +605,7 @@ class Characteristic:
         # pylint: disable=protected-access
         if notify:
             adapter.await_bleak(
-                self._service.connection._bleak_client.start_notify(
+                self.service.connection._bleak_client.start_notify(
                     self._bleak_gatt_characteristic.uuid,
                     self._notify_callback,
                 )
