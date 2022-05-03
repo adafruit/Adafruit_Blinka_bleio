@@ -10,7 +10,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Set, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Set, Union
 
 import asyncio
 import atexit
