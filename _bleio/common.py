@@ -43,6 +43,7 @@ Buf = Union[bytes, bytearray, memoryview]
 
 class Adapter:  # pylint: disable=too-many-instance-attributes
     """Singleton _bleio.adapter is defined after class Adapter."""
+
     # Do blocking scans in chunks of this interval.
     _SCAN_INTERVAL = 0.25
 
@@ -259,7 +260,9 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                 yield scan_entry
 
     @staticmethod
-    def _parse_hcidump_data(buffered: List[bytes], prefixes: bytes, minimum_rssi: int, active: bool):
+    def _parse_hcidump_data(
+        buffered: List[bytes], prefixes: bytes, minimum_rssi: int, active: bool
+    ):
         # > is controller to host, 04 is for an HCI Event packet, and 3E is an LE meta-event
         if buffered[0].startswith(b"> 04 3E"):
             subevent_code = int(buffered[0][11:13], 16)
