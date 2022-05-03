@@ -679,7 +679,9 @@ class Connection:
         :param BleakClient _bleak_client: BleakClient used to make connection. (Blinka _bleio only)
         """
         conn = Connection(address)
-        conn.__bleak_client = _bleak_client  # pylint: disable=protected-access,unused-private-member
+        conn.__bleak_client = (  # pylint: disable=protected-access,unused-private-member
+            _bleak_client
+        )
         return conn
 
     @property
