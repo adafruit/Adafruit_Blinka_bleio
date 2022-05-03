@@ -42,6 +42,8 @@ Buf = Union[bytes, bytearray, memoryview]
 
 # Singleton _bleio.adapter is defined after class Adapter.
 adapter = None  # pylint: disable=invalid-name
+
+
 class Adapter:  # pylint: disable=too-many-instance-attributes
     """Singleton _bleio.adapter is defined after class Adapter."""
 
