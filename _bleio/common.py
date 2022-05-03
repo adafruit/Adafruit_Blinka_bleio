@@ -679,7 +679,7 @@ class Connection:
         :param BleakClient _bleak_client: BleakClient used to make connection. (Blinka _bleio only)
         """
         conn = Connection(address)
-        conn.__bleak_client = _bleak_client  # pylint: disable=protected-access
+        conn.__bleak_client = _bleak_client  # pylint: disable=protected-access,unused-private-member
         return conn
 
     @property
@@ -786,7 +786,7 @@ class Connection:
         raise NotImplementedError("max_packet_length not available")
 
     def __repr__(self):
-        return "<Connection: {}".format(self._address)
+        return f"<Connection: {self._address}"
 
 
 class Service:

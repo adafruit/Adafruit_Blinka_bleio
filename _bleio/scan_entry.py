@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Union
 
-from bleak import BLEDevice
+from bleak.backends.device import BLEDevice
 
 from .address import Address
 from .uuid_ import UUID
