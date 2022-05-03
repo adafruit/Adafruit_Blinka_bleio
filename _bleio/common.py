@@ -205,7 +205,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         window: float = 0.1,  # pylint: disable=unused-argument
         minimum_rssi: int = -80,
         active: bool = True,  # pylint: disable=unused-argument
-    ) -> Iterable:
+    ) -> Iterable[ScanEntry]:
         """
         Starts a BLE scan and returns an iterator of results. Advertisements and scan responses are
         filtered and returned separately.
