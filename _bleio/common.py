@@ -224,7 +224,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
            window must be <= interval.
         :param int minimum_rssi: the minimum rssi of entries to return.
         :param bool active: retrieve scan responses for scannable advertisements.
-        :returns: an iterable of `ScanEntry` objects
+        :returns: an iterable of ``ScanEntry`` objects
         :rtype: iterable"""
 
         # Remember only the most recently advertised devices.
