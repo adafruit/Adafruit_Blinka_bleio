@@ -11,7 +11,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 """
 from __future__ import annotations
 import re
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from bleak.backends.device import BLEDevice
 
@@ -40,10 +40,10 @@ class ScanEntry:
         *,
         address: Address,
         rssi: int,
-        advertisement_bytes: Buf = None,
+        advertisement_bytes: Optional[Buf] = None,
         connectable: bool,
         scan_response: bool,
-        data_dict: DataDict = None,
+        data_dict: Optional[DataDict] = None,
     ):
         """Should not be instantiated directly. Use `_bleio.Adapter.start_scan`."""
         self._address = address

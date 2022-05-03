@@ -11,7 +11,7 @@
 """
 
 from __future__ import annotations
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import re
 
@@ -30,7 +30,7 @@ class Address:
     _MAC_ADDRESS_RE = re.compile(r"[-:]".join([r"([0-9a-fA-F]{2})"] * 6))
 
     def __init__(
-        self, address: Buf = None, address_type: int = RANDOM_STATIC, string: str = None
+        self, address: Optional[Buf] = None, address_type: int = RANDOM_STATIC, string: Optional[str] = None
     ):
         """Bleak uses strings for addresses. The string may be a 6-byte MAC address,
         or it may be a UUID on MacOS."""

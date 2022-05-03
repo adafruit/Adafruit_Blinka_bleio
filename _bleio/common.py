@@ -133,7 +133,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         self._bleak_thread_ready.set()
         self._bleak_loop.run_forever()
 
-    def await_bleak(self, coro, timeout: float = None):
+    def await_bleak(self, coro, timeout: Optional[float] = None):
         """Call an async routine in the bleak thread from sync code, and await its result."""
         # This is a concurrent.Future.
         future = asyncio.run_coroutine_threadsafe(coro, self._bleak_loop)
@@ -179,7 +179,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         self,
         data: Buf,
         *,
-        scan_response: Buf = None,
+        scan_response: Optional[Buf] = None,
         connectable: bool = True,
         anonymous: bool = False,
         timeout: int = 0,
@@ -197,7 +197,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         *,
         buffer_size: int = 512,  # pylint: disable=unused-argument
         extended: bool = False,  # pylint: disable=unused-argument
-        timeout: float = None,
+        timeout: Optional[float] = None,
         interval: float = 0.1,  # pylint: disable=unused-argument
         window: float = 0.1,  # pylint: disable=unused-argument
         minimum_rssi: int = -80,
@@ -421,7 +421,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
     def _clear_device_cache(self) -> None:
         self._cached_devices.clear()
 
-    def _cache_device(self, device: BLEDevice) -> Dict[str, BLEDevice]:
+    def _cache_device(self, device: BLEDevice) -> None:
         self._cached_devices[device.address] = device
 
 
@@ -456,7 +456,7 @@ class Characteristic:
         write_perm: Attribute = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
-        initial_value: Buf = None,
+        initial_value: Optional[Buf] = None,
     ):
         """There is no regular constructor for a Characteristic.  A
         new local Characteristic can be created and attached to a
@@ -486,7 +486,7 @@ class Characteristic:
         write_perm: Attribute = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
-        initial_value: Buf = None,
+        initial_value: Optional[Buf] = None,
     ) -> "Characteristic":
         """Create a new Characteristic object, and add it to this Service.
 
@@ -702,14 +702,14 @@ class Connection:
         raise NotImplementedError("Pairing not implemented")
 
     def discover_remote_services(
-        self, service_uuids_whitelist: Iterable = None
+        self, service_uuids_whitelist: Optional[Iterable] = None
     ) -> Tuple[Service]:
         return adapter.await_bleak(
             self._discover_remote_services_async(service_uuids_whitelist)
         )
 
     async def _discover_remote_services_async(
-        self, service_uuids_whitelist: Iterable = None
+        self, service_uuids_whitelist: Optional[Iterable] = None
     ) -> Tuple[Service]:
         """Do BLE discovery for all services or for the given service UUIDS,
          to find their handles and characteristics, and return the discovered services.
