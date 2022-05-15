@@ -31,8 +31,8 @@ class Descriptor:
         self,
         *,
         uuid: UUID,
-        read_perm: Attribute = Attribute.OPEN,
-        write_perm: Attribute = Attribute.OPEN,
+        read_perm: int = Attribute.OPEN,
+        write_perm: int = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
         initial_value: Buf = b""
@@ -58,8 +58,8 @@ class Descriptor:
         characteristic: Characteristic,
         uuid: UUID,
         *,
-        read_perm: Attribute = Attribute.OPEN,
-        write_perm: Attribute = Attribute.OPEN,
+        read_perm: int = Attribute.OPEN,
+        write_perm: int = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
         initial_value: Buf = b""
