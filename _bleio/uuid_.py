@@ -100,7 +100,7 @@ class UUID:
     def _from_bleak(cls, bleak_uuid: Any) -> "UUID":
         """Convert a bleak UUID to a _bleio.UUID."""
         uuid = UUID(bleak_uuid)
-        uuid.__bleak_uuid = bleak_uuid  # pylint: disable=protected-access
+        uuid.__bleak_uuid = bleak_uuid  # pylint: disable=unused-private-member
         return uuid
 
     @property
@@ -124,7 +124,7 @@ class UUID:
     def size(self) -> int:
         return self._size
 
-    def pack_into(self, buffer, offset=0):
+    def pack_into(self, buffer, offset=0) -> None:
         byte_size = self.size // 8
         if len(buffer) - offset < byte_size:
             raise IndexError("Buffer offset too small")
@@ -134,7 +134,7 @@ class UUID:
             buffer[offset:byte_size] = self.uuid128
 
     @property
-    def is_standard_uuid(self):
+    def is_standard_uuid(self) -> bool:
         """True if this is a standard 16-bit UUID (0000xxxx-0000-1000-8000-00805F9B34FB)
         even if it's 128-bit."""
         return self.size == 16 or (
@@ -158,7 +158,7 @@ class UUID:
 
     def __str__(self) -> str:
         return (
-            "{:02x}{:02x}{:02x}{:02x}-"
+            "{:02x}{:02x}{:02x}{:02x}-"  # pylint: disable=consider-using-f-string
             "{:02x}{:02x}-"
             "{:02x}{:02x}-"
             "{:02x}{:02x}-"
@@ -167,10 +167,5 @@ class UUID:
 
     def __repr__(self) -> str:
         if self.size == 16:
-            return "UUID({:#04x})".format(self.uuid16)
-        return "UUID({})".format(str(self))
-
-
-UUID.BASE_STANDARD_UUID = UUID("00000000-0000-1000-8000-00805F9B34FB")
-"""16 bit xxyy UUIDs are shorthand for the
-base 128-bit UUID 0000yyxx-0000-1000-8000-00805F9B34FB."""
+            return f"UUID({self.uuid16:#04x})"
+        return f"UUID({self!s})"

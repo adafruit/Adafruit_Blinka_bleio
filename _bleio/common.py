@@ -10,7 +10,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
-from typing import Callable, Iterable, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Set, Union
 
 import asyncio
 import atexit
@@ -18,13 +18,14 @@ import platform
 import threading
 import time
 
-from bleak import BleakClient, BleakScanner
-from bleak.backends.characteristic import (
+from bleak import BleakClient, BleakScanner  # type: ignore[import]
+from bleak.backends.characteristic import (  # type: ignore[import]
     BleakGATTCharacteristic,
     GattCharacteristicsFlags,
 )
-from bleak.backends.device import BLEDevice
-from bleak.backends.service import BleakGATTService
+from bleak.backends.device import BLEDevice  # type: ignore[import]
+from bleak.backends.service import BleakGATTService  # type: ignore[import]
+
 
 from _bleio.address import Address
 from _bleio.attribute import Attribute
@@ -44,6 +45,8 @@ adapter = None  # pylint: disable=invalid-name
 
 
 class Adapter:  # pylint: disable=too-many-instance-attributes
+    """Singleton _bleio.adapter is defined after class Adapter."""
+
     # Do blocking scans in chunks of this interval.
     _SCAN_INTERVAL = 0.25
 
@@ -77,7 +80,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         # Clean up connections, etc. when exiting (even by KeyboardInterrupt)
         atexit.register(self._cleanup)
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """Clean up connections, so that the underlying OS software does not
         leave them open.
         """
@@ -87,7 +90,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
             connection.disconnect()
 
     @property
-    def _use_hcitool(self):
+    def _use_hcitool(self) -> bool:
         """Determines whether to use the hcitool backend or default bleak, based on whether
         we want to and can use hcitool.
         """
@@ -127,13 +130,13 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
 
         return self._hcitool_is_usable
 
-    def _run_bleak_loop(self):
+    def _run_bleak_loop(self) -> None:
         self._bleak_loop = asyncio.new_event_loop()
         # Event loop is now available.
         self._bleak_thread_ready.set()
         self._bleak_loop.run_forever()
 
-    def await_bleak(self, coro, timeout=None):
+    def await_bleak(self, coro, timeout: Optional[float] = None):
         """Call an async routine in the bleak thread from sync code, and await its result."""
         # This is a concurrent.Future.
         future = asyncio.run_coroutine_threadsafe(coro, self._bleak_loop)
@@ -144,11 +147,11 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         return self._enabled
 
     @enabled.setter
-    def enabled(self, value: bool):
+    def enabled(self, value: bool) -> None:
         self._enabled = value
 
     @property
-    def address(self) -> Address:
+    def address(self) -> Optional[Address]:
         if platform.system() == "Linux":
             try:
                 lines = subprocess.run(
@@ -172,14 +175,14 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         return self._name
 
     @name.setter
-    def name(self, value: str):
+    def name(self, value: str) -> None:
         self._name = value
 
     def start_advertising(
         self,
         data: Buf,
         *,
-        scan_response: Buf = None,
+        scan_response: Optional[Buf] = None,
         connectable: bool = True,
         anonymous: bool = False,
         timeout: int = 0,
@@ -197,12 +200,12 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         *,
         buffer_size: int = 512,  # pylint: disable=unused-argument
         extended: bool = False,  # pylint: disable=unused-argument
-        timeout: float = None,
+        timeout: Optional[float] = None,
         interval: float = 0.1,  # pylint: disable=unused-argument
         window: float = 0.1,  # pylint: disable=unused-argument
         minimum_rssi: int = -80,
         active: bool = True,  # pylint: disable=unused-argument
-    ) -> Iterable:
+    ) -> Iterable[ScanEntry]:
         """
         Starts a BLE scan and returns an iterator of results. Advertisements and scan responses are
         filtered and returned separately.
@@ -221,7 +224,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
            window must be <= interval.
         :param int minimum_rssi: the minimum rssi of entries to return.
         :param bool active: retrieve scan responses for scannable advertisements.
-        :returns: an iterable of `ScanEntry` objects
+        :returns: an iterable of ``ScanEntry`` objects
         :rtype: iterable"""
 
         # Remember only the most recently advertised devices.
@@ -260,7 +263,9 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                 yield scan_entry
 
     @staticmethod
-    def _parse_hcidump_data(buffered, prefixes, minimum_rssi, active):
+    def _parse_hcidump_data(
+        buffered: List[bytes], prefixes: bytes, minimum_rssi: int, active: bool
+    ):
         # > is controller to host, 04 is for an HCI Event packet, and 3E is an LE meta-event
         if buffered[0].startswith(b"> 04 3E"):
             subevent_code = int(buffered[0][11:13], 16)
@@ -303,8 +308,8 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         self,
         prefixes: Buf,
         *,
-        timeout: float,
-        minimum_rssi,
+        timeout: Optional[float],
+        minimum_rssi: int,
         active: bool,
     ) -> Iterable:
         """hcitool scanning (only on Linux)"""
@@ -327,15 +332,15 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
             )
         # pylint: enable=consider-using-with
         # Throw away the first two output lines of hcidump because they are version info.
-        hcidump.stdout.readline()
-        hcidump.stdout.readline()
+        hcidump.stdout.readline()  # type: ignore[union-attr]
+        hcidump.stdout.readline()  # type: ignore[union-attr]
         returncode = self._hcitool.poll()
         start_time = time.monotonic()
-        buffered = []
+        buffered: List[bytes] = []
         while returncode is None and (
-            not timeout or time.monotonic() - start_time < timeout
+            timeout is None or time.monotonic() - start_time < timeout
         ):
-            line = hcidump.stdout.readline()
+            line = hcidump.stdout.readline()  # type: ignore[union-attr]
             # print(line, line[0])
             if line[0] != 32:  # 32 is ascii for space
                 if buffered:
@@ -372,7 +377,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         self._scanner = None
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         return bool(self._connections)
 
     @property
@@ -383,7 +388,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         return self.await_bleak(self._connect_async(address, timeout=timeout))
 
     # pylint: disable=protected-access
-    async def _connect_async(self, address: Address, *, timeout: float) -> None:
+    async def _connect_async(self, address: Address, *, timeout: float) -> Connection:
         device = self._cached_device(address)
         # Use cached device if possible, to avoid having BleakClient do
         # a scan again.
@@ -416,10 +421,10 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         """Return a device recently found during scanning with the given address."""
         return self._cached_devices.get(address)
 
-    def _clear_device_cache(self):
+    def _clear_device_cache(self) -> None:
         self._cached_devices.clear()
 
-    def _cache_device(self, device: BLEDevice):
+    def _cache_device(self, device: BLEDevice) -> None:
         self._cached_devices[device.address] = device
 
 
@@ -454,7 +459,7 @@ class Characteristic:
         write_perm: int = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
-        initial_value: Buf = None,
+        initial_value: Optional[Buf] = None,
     ):
         """There is no regular constructor for a Characteristic.  A
         new local Characteristic can be created and attached to a
@@ -468,10 +473,10 @@ class Characteristic:
         self._max_length = max_length
         self._fixed_length = fixed_length
         self._initial_value = initial_value
-        self._service = None
-        self._descriptors = ()
+        self._service: Optional[Service] = None
+        self._descriptors: Tuple["Descriptor"] = ()  # type: ignore[name-defined,assignment]
         self._bleak_gatt_characteristic = None
-        self._notify_callbacks = set()
+        self._notify_callbacks: Set[Callable[[Buf], None]] = set()
 
     @classmethod
     def add_to_service(
@@ -484,7 +489,7 @@ class Characteristic:
         write_perm: int = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
-        initial_value: Buf = None,
+        initial_value: Optional[Buf] = None,
     ) -> "Characteristic":
         """Create a new Characteristic object, and add it to this Service.
 
@@ -526,7 +531,7 @@ class Characteristic:
     @classmethod
     def _from_bleak(
         cls, service: "Service", _bleak_characteristic: BleakGATTCharacteristic
-    ):
+    ) -> "Characteristic":
         properties = 0
         for prop in _bleak_characteristic.properties:
             properties |= GattCharacteristicsFlags[prop.replace("-", "_")].value
@@ -543,7 +548,7 @@ class Characteristic:
         # pylint: enable=protected-access
         return charac
 
-    def _bleak_characteristic(self):
+    def _bleak_characteristic(self) -> BleakGATTCharacteristic:
         """BleakGATTCharacteristic object"""
         return self._bleak_gatt_characteristic
 
@@ -583,13 +588,15 @@ class Characteristic:
         )
 
     @property
-    def descriptors(self) -> Tuple["Descriptor"]:
+    def descriptors(self) -> Tuple["Descriptor"]:  # type: ignore[name-defined]
         """A tuple of :py:class:~`Descriptor` that describe this characteristic. (read-only)"""
         return self._descriptors
 
     @property
     def service(self) -> "Service":
         """The Service this Characteristic is a part of."""
+        if self._service is None:
+            raise ValueError("Characteristic not added to a Service")
         return self._service
 
     def set_cccd(self, *, notify: bool = False, indicate: bool = False) -> None:
@@ -604,7 +611,7 @@ class Characteristic:
         # pylint: disable=protected-access
         if notify:
             adapter.await_bleak(
-                self._service.connection._bleak_client.start_notify(
+                self.service.connection._bleak_client.start_notify(
                     self._bleak_gatt_characteristic.uuid,
                     self._notify_callback,
                 )
@@ -675,7 +682,9 @@ class Connection:
         :param BleakClient _bleak_client: BleakClient used to make connection. (Blinka _bleio only)
         """
         conn = Connection(address)
-        conn.__bleak_client = _bleak_client  # pylint: disable=protected-access
+        conn.__bleak_client = (  # pylint: disable=protected-access,unused-private-member
+            _bleak_client
+        )
         return conn
 
     @property
@@ -696,14 +705,14 @@ class Connection:
         raise NotImplementedError("Pairing not implemented")
 
     def discover_remote_services(
-        self, service_uuids_whitelist: Iterable = None
+        self, service_uuids_whitelist: Optional[Iterable] = None
     ) -> Tuple[Service]:
         return adapter.await_bleak(
             self._discover_remote_services_async(service_uuids_whitelist)
         )
 
     async def _discover_remote_services_async(
-        self, service_uuids_whitelist: Iterable = None
+        self, service_uuids_whitelist: Optional[Iterable] = None
     ) -> Tuple[Service]:
         """Do BLE discovery for all services or for the given service UUIDS,
          to find their handles and characteristics, and return the discovered services.
@@ -782,7 +791,7 @@ class Connection:
         raise NotImplementedError("max_packet_length not available")
 
     def __repr__(self):
-        return "<Connection: {}".format(self._address)
+        return f"<Connection: {self._address}"
 
 
 class Service:

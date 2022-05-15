@@ -10,7 +10,7 @@ _bleio implementation for Adafruit_Blinka_bleio
 * Author(s): Dan Halbert for Adafruit Industries
 """
 from __future__ import annotations
-from typing import Union
+from typing import Optional, Union
 
 import asyncio
 import queue
@@ -61,7 +61,7 @@ class CharacteristicBuffer:
             except queue.Full:
                 return
 
-    def read(self, nbytes: int = None) -> Union[Buf, None]:
+    def read(self, nbytes: Optional[int] = None) -> Union[Buf, None]:
         """Read characters.  If ``nbytes`` is specified then read at most that many
         bytes. Otherwise, read everything that arrives until the connection
         times out. Providing the number of bytes expected is highly recommended

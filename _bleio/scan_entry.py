@@ -11,12 +11,15 @@ _bleio implementation for Adafruit_Blinka_bleio
 """
 from __future__ import annotations
 import re
-from typing import Union
+from typing import Dict, List, Optional, Union
+
+from bleak.backends.device import BLEDevice
 
 from .address import Address
 from .uuid_ import UUID
 
 Buf = Union[bytes, bytearray, memoryview]
+DataDict = Dict[int, Buf]
 
 
 class ScanEntry:
@@ -37,10 +40,10 @@ class ScanEntry:
         *,
         address: Address,
         rssi: int,
-        advertisement_bytes: Buf = None,
+        advertisement_bytes: Optional[Buf] = None,
         connectable: bool,
         scan_response: bool,
-        data_dict=None,
+        data_dict: Optional[DataDict] = None,
     ):
         """Should not be instantiated directly. Use `_bleio.Adapter.start_scan`."""
         self._address = address
@@ -55,7 +58,7 @@ class ScanEntry:
             )
 
     @classmethod
-    def _from_bleak(cls, device):
+    def _from_bleak(cls, device: BLEDevice) -> "ScanEntry":
         return cls(
             address=Address(string=device.address),
             rssi=device.rssi,
@@ -66,7 +69,7 @@ class ScanEntry:
         )
 
     def matches(
-        self, prefixes, all: bool = True  # pylint: disable=redefined-builtin
+        self, prefixes: bytes, all: bool = True  # pylint: disable=redefined-builtin
     ) -> bool:
         # We may not have the original advertisement bytes, so we can't
         # do a perfect job of matching.
@@ -88,30 +91,30 @@ class ScanEntry:
         # All prefixes matched some field (if all), or none did (if any).
         return all
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"<ScanEntry {str(self._address)}>"
 
     @property
-    def address(self):
+    def address(self) -> Address:
         return self._address
 
     @property
-    def rssi(self):
+    def rssi(self) -> int:
         return self._rssi
 
     @property
-    def connectable(self):
+    def connectable(self) -> bool:
         return self._connectable
 
     @property
-    def scan_response(self):
+    def scan_response(self) -> bool:
         return self._scan_response
 
     @property
-    def advertisement_bytes(self):
+    def advertisement_bytes(self) -> bytes:
         """The original advertisement bytes may not be available. Concatenate the
         data_dict entries to make an incomplete advertising bytestring.
         """
@@ -122,7 +125,7 @@ class ScanEntry:
         )
 
     @property
-    def _advertisement_fields(self):
+    def _advertisement_fields(self) -> List[bytes]:
         """The individual data fields of the advertisement, without length headers.
         Each field is one byte of advertising data type followed by the data.
         """
@@ -141,7 +144,7 @@ class ScanEntry:
         )
 
     @staticmethod
-    def _data_dict_from_bleak(device):
+    def _data_dict_from_bleak(device: BLEDevice) -> DataDict:
         data_dict = {}
         for key, value in device.metadata.items():
             if key == "manufacturer_data":
@@ -177,7 +180,7 @@ class ScanEntry:
         return data_dict
 
     @staticmethod
-    def _separate_prefixes(prefixes_bytes):
+    def _separate_prefixes(prefixes_bytes: bytes) -> List[bytes]:
         """Separate a concatenated prefix bytestring into separate prefix strings."""
         i = 0
         prefixes = []
