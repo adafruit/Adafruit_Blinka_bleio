@@ -35,7 +35,7 @@ class Descriptor:
         write_perm: int = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
-        initial_value: Buf = b""
+        initial_value: Buf = b"",
     ):
 
         """There is no regular constructor for a Descriptor. A new local Descriptor can be created
@@ -62,7 +62,7 @@ class Descriptor:
         write_perm: int = Attribute.OPEN,
         max_length: int = 20,
         fixed_length: bool = False,
-        initial_value: Buf = b""
+        initial_value: Buf = b"",
     ):
 
         """Create a new Descriptor object, and add it to this Service.
