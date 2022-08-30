@@ -72,6 +72,7 @@ class ScanEntry:
         self,
         prefixes: bytes,
         match_all: bool = True,
+    ) -> bool:
         # We may not have the original advertisement bytes, so we can't
         # do a perfect job of matching.
         if len(prefixes) == 0:
