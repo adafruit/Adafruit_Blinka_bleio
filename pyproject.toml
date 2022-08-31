@@ -39,7 +39,7 @@ classifiers = [
 dynamic = ["dependencies", "optional-dependencies"]
 
 [tool.setuptools]
-py-modules = ["_bleio"]
+packages = ["_bleio"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
