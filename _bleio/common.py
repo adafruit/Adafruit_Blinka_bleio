@@ -258,7 +258,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                 scan_entry = ScanEntry._from_bleak(  # pylint: disable=protected-access
                     device
                 )
-                if not scan_entry.matches(prefixes, all=False):
+                if not scan_entry.matches(prefixes, match_all=False):
                     continue
                 yield scan_entry
 
@@ -300,7 +300,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                     connectable=event_type < 0x2,
                     scan_response=event_type == 0x4,
                 )
-                if scan_entry.matches(prefixes, all=False):
+                if scan_entry.matches(prefixes, match_all=False):
                     return scan_entry
         return None
 

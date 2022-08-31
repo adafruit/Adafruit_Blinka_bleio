@@ -69,7 +69,9 @@ class ScanEntry:
         )
 
     def matches(
-        self, prefixes: bytes, all: bool = True  # pylint: disable=redefined-builtin
+        self,
+        prefixes: bytes,
+        match_all: bool = True,
     ) -> bool:
         # We may not have the original advertisement bytes, so we can't
         # do a perfect job of matching.
@@ -80,16 +82,16 @@ class ScanEntry:
             prefix_matched = False
             for field in fields:
                 if field.startswith(prefix):
-                    if not all:
+                    if not match_all:
                         return True
                     prefix_matched = True
                     break
             # if all, this prefix must match at least one field
-            if not prefix_matched and all:
+            if not prefix_matched and match_all:
                 return False
 
         # All prefixes matched some field (if all), or none did (if any).
-        return all
+        return match_all
 
     def __repr__(self) -> str:
         return str(self)
