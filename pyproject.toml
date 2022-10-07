@@ -17,7 +17,7 @@ readme = "README.rst"
 authors = [
     {name = "Adafruit Industries", email = "circuitpython@adafruit.com"}
 ]
-urls = {Homepage = "https://github.com/adafruit/Adafruit_CircuitPython_SI1145.git"}
+urls = {Homepage = "https://github.com/adafruit/Adafruit_Blinka_bleio.git"}
 keywords = [
     "adafruit",
     "blinka",
