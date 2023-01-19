@@ -334,7 +334,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         # Throw away the first two output lines of hcidump because they are version info.
         hcidump.stdout.readline()  # type: ignore[union-attr]
         hcidump.stdout.readline()  # type: ignore[union-attr]
-        returncode = self._hcitool.poll()
+        returncode = hcidump.poll()
         start_time = time.monotonic()
         buffered: List[bytes] = []
         while returncode is None and (
@@ -351,7 +351,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                         yield parsed
                     buffered.clear()
             buffered.append(line)
-            returncode = self._hcitool.poll()
+            returncode = hcidump.poll()
         self.stop_scan()
 
     async def _scan_for_interval(self, interval: float) -> Iterable[ScanEntry]:
