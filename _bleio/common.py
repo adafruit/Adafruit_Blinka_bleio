@@ -71,6 +71,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         # Not known yet.
         self._hcitool_is_usable = None
         self._hcitool = None
+        self._hcidump = None
         self.ble_backend = None
 
         # Keep a cache of recently scanned devices, to avoid doing double
@@ -316,7 +317,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         # hcidump outputs the full advertisement data, assuming it's run privileged.
         # Since hcitool is privileged, we assume hcidump is too.
         # pylint: disable=consider-using-with
-        hcidump = subprocess.Popen(
+        self._hcidump = subprocess.Popen(
             ["hcidump", "--raw", "hci"],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
@@ -332,15 +333,15 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
             )
         # pylint: enable=consider-using-with
         # Throw away the first two output lines of hcidump because they are version info.
-        hcidump.stdout.readline()  # type: ignore[union-attr]
-        hcidump.stdout.readline()  # type: ignore[union-attr]
-        returncode = hcidump.poll()
+        self._hcidump.stdout.readline()  # type: ignore[union-attr]
+        self._hcidump.stdout.readline()  # type: ignore[union-attr]
+        returncode = self._hcidump.poll()
         start_time = time.monotonic()
         buffered: List[bytes] = []
         while returncode is None and (
             timeout is None or time.monotonic() - start_time < timeout
         ):
-            line = hcidump.stdout.readline()  # type: ignore[union-attr]
+            line = self._hcidump.stdout.readline()  # type: ignore[union-attr]
             # print(line, line[0])
             if line[0] != 32:  # 32 is ascii for space
                 if buffered:
@@ -351,7 +352,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
                         yield parsed
                     buffered.clear()
             buffered.append(line)
-            returncode = hcidump.poll()
+            returncode = self._hcidump.poll()
         self.stop_scan()
 
     async def _scan_for_interval(self, interval: float) -> Iterable[ScanEntry]:
@@ -368,11 +369,17 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
 
     def stop_scan(self) -> None:
         """Stop scanning before timeout may have occurred."""
-        if self._use_hcitool and self._hcitool:
-            if self._hcitool.returncode is None:
-                self._hcitool.send_signal(signal.SIGINT)
-                self._hcitool.wait()
-            self._hcitool = None
+        if self._use_hcitool:
+            if self._hcitool:
+                if self._hcitool.poll() is None:
+                    self._hcitool.send_signal(signal.SIGINT)
+                    self._hcitool.wait()
+                self._hcitool = None
+            if self._hcidump:
+                if self._hcidump.poll() is None:
+                    self._hcidump.send_signal(signal.SIGINT)
+                    self._hcidump.wait()
+                self._hcidump = None
         self._scanning_in_progress = False
         self._scanner = None
 
