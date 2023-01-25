@@ -55,9 +55,9 @@ class CharacteristicBuffer:
             while self._queue.qsize() > len(data):
                 self._queue.get_nowait()
 
-        for b in data:
+        for data_byte in data:
             try:
-                self._queue.put_nowait(b)
+                self._queue.put_nowait(data_byte)
             except queue.Full:
                 return
 
@@ -69,10 +69,12 @@ class CharacteristicBuffer:
 
         :return: Data read
         """
-        b = bytearray(min(nbytes, self._buffer_size) if nbytes else self._buffer_size)
-        if self.readinto(b) == 0:
+        buffer = bytearray(
+            min(nbytes, self._buffer_size) if nbytes else self._buffer_size
+        )
+        if self.readinto(buffer) == 0:
             return None
-        return b
+        return buffer
 
     def readinto(self, buf: Buf) -> Union[int, None]:
         """Read bytes into the ``buf``. Read at most ``len(buf)`` bytes.
@@ -103,13 +105,13 @@ class CharacteristicBuffer:
         end = time.time() + self._timeout
         while time.time() < end:
             try:
-                b = self._queue.get_nowait()
-                line.append(b)
+                line_byte = self._queue.get_nowait()
+                line.append(line_byte)
             except queue.Empty:
                 # Let the BLE code run for a bit, and try again.
                 adapter.await_bleak(asyncio.sleep(0.1))
                 continue
-            if b == 0x0A:  # newline
+            if line_byte == 0x0A:  # newline
                 break
 
         return line

@@ -433,6 +433,7 @@ adapter = Adapter()
 adapter.enabled = True
 
 
+# pylint: disable=too-many-instance-attributes
 class Characteristic:
     """Stores information about a BLE service characteristic and allows reading
     and writing of the characteristic's value."""
@@ -634,7 +635,7 @@ class Characteristic:
     # pylint: disable=unused-argument
     def _notify_callback(self, handle: Optional[int], data: Buf):
         # pylint: disable=protected-access
-        # TODO: Right now we can't vet the handle, because it may be None.
+        # Note: Right now we can't vet the handle, because it may be None.
         for callback in self._notify_callbacks:
             callback(data)
 

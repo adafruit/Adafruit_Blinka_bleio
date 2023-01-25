@@ -21,6 +21,7 @@ from _bleio.uuid_ import UUID
 Buf = Union[bytes, bytearray, memoryview]
 
 
+# pylint: disable=too-many-instance-attributes
 class Descriptor:
     """Stores information about a BLE descriptor.
 
