@@ -46,16 +46,11 @@ jobs:
     - name: Build assets
       run: circuitpython-build-bundles --filename_prefix ${{ steps.repo-name.outputs.repo-name }} --library_location .
     - name: Upload Release Assets
-      # the 'official' actions version does not yet support dynamically
-      # supplying asset names to upload. @csexton's version chosen based on
-      # discussion in the issue below, as its the simplest to implement and
-      # allows for selecting files with a pattern.
-      # https://github.com/actions/upload-release-asset/issues/4
-      #uses: actions/upload-release-asset@v1.0.1
-      uses: csexton/release-asset-action@master
+      uses: shogo82148/actions-upload-release-asset@v1
       with:
-        pattern: "bundles/*"
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        asset_path: "bundles/*"
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        upload_url: ${{ github.event.release.upload_url }}
 
   upload-pypi:
     runs-on: ubuntu-latest
