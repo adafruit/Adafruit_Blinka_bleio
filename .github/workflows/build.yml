@@ -65,7 +65,7 @@ jobs:
     - name: Check For pyproject.toml
       id: need-pypi
       run: |
-        echo "pyproject-toml=$( find . -wholename './pyproject.toml' )" >> $GITHUB_OUTPUT"
+        echo "pyproject-toml=$( find . -wholename './pyproject.toml' )" >> $GITHUB_OUTPUT
     - name: Build Python package
       if: contains(steps.need-pypi.outputs.pyproject-toml, 'pyproject.toml')
       run: |
