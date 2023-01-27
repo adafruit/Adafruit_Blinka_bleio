@@ -19,24 +19,24 @@ jobs:
     - name: Translate Repo Name For Build Tools filename_prefix
       id: repo-name
       run: |
-        echo ::set-output name=repo-name::$(
+        echo "repo-name=$(
         echo ${{ github.repository }} |
         awk -F '\/' '{ print tolower($2) }' |
         tr '_' '-'
-        )
+        )" >> $GITHUB_OUTPUT
     - name: Set up Python 3.x
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: "3.x"
     - name: Versions
       run: |
         python3 --version
     - name: Checkout Current Repo
-      uses: actions/checkout@v1
+      uses: actions/checkout@v3
       with:
         submodules: true
     - name: Checkout tools repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: adafruit/actions-ci-circuitpython-libs
         path: actions-ci
@@ -46,28 +46,23 @@ jobs:
     - name: Build assets
       run: circuitpython-build-bundles --filename_prefix ${{ steps.repo-name.outputs.repo-name }} --library_location .
     - name: Upload Release Assets
-      # the 'official' actions version does not yet support dynamically
-      # supplying asset names to upload. @csexton's version chosen based on
-      # discussion in the issue below, as its the simplest to implement and
-      # allows for selecting files with a pattern.
-      # https://github.com/actions/upload-release-asset/issues/4
-      #uses: actions/upload-release-asset@v1.0.1
-      uses: csexton/release-asset-action@master
+      uses: shogo82148/actions-upload-release-asset@v1
       with:
-        pattern: "bundles/*"
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        asset_path: "bundles/*"
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        upload_url: ${{ github.event.release.upload_url }}
 
   upload-pypi:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v3
     - name: Check For pyproject.toml
       id: need-pypi
       run: |
-        echo ::set-output name=pyproject-toml::$( find . -wholename './pyproject.toml' )
+        echo "pyproject-toml=$( find . -wholename './pyproject.toml' )" >> $GITHUB_OUTPUT
     - name: Set up Python
       if: contains(steps.need-pypi.outputs.pyproject-toml, 'pyproject.toml')
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: '3.x'
     - name: Install dependencies
