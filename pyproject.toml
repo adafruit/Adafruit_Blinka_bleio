@@ -8,6 +8,7 @@ requires = [
     "wheel",
     "setuptools-scm",
 ]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "adafruit-blinka-bleio"
