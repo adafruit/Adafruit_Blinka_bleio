@@ -14,6 +14,7 @@ import re
 from typing import Dict, List, Optional, Union
 
 from bleak.backends.device import BLEDevice
+from bleak.backends.scanner import AdvertisementData
 
 from .address import Address
 from .uuid_ import UUID
@@ -58,14 +59,16 @@ class ScanEntry:
             )
 
     @classmethod
-    def _from_bleak(cls, device: BLEDevice) -> "ScanEntry":
+    def _from_bleak(
+        cls, device: BLEDevice, advertisement_data: AdvertisementData
+    ) -> "ScanEntry":
         return cls(
             address=Address(string=device.address),
-            rssi=device.rssi,
+            rssi=advertisement_data.rssi,
             # connectable is a guess, based on UUIDS being advertised or not.
-            connectable="uuids" in device.metadata,
+            connectable=bool(advertisement_data.service_uuids),
             scan_response=False,
-            data_dict=cls._data_dict_from_bleak(device),
+            data_dict=cls._data_dict_from_bleak(device, advertisement_data),
         )
 
     def matches(
@@ -146,27 +149,29 @@ class ScanEntry:
         )
 
     @staticmethod
-    def _data_dict_from_bleak(device: BLEDevice) -> DataDict:
+    def _data_dict_from_bleak(
+        device: BLEDevice, advertisement_data: AdvertisementData
+    ) -> DataDict:
         data_dict = {}
-        for key, value in device.metadata.items():
-            if key == "manufacturer_data":
-                # The manufacturer data value is a dictionary.
-                # Re-concatenate it into bytes
-                all_mfr_data = bytearray()
-                for mfr_id, mfr_data in value.items():
-                    all_mfr_data.extend(mfr_id.to_bytes(2, byteorder="little"))
-                    all_mfr_data.extend(mfr_data)
-                data_dict[0xFF] = all_mfr_data
-            elif key == "uuids":
-                uuids16 = bytearray()
-                uuids128 = bytearray()
-                for uuid in value:
-                    bleio_uuid = UUID(uuid)
-                    # If this is a Standard UUID in 128-bit form, convert it to a 16-bit UUID.
-                    if bleio_uuid.is_standard_uuid:
-                        uuids16.extend(bleio_uuid.uuid128[12:14])
-                    else:
-                        uuids128.extend(bleio_uuid.uuid128)
+        if manufacturer_data := advertisement_data.manufacturer_data:
+            # The manufacturer data value is a dictionary.
+            # Re-concatenate it into bytes
+            all_mfr_data = bytearray()
+            for mfr_id, mfr_data in manufacturer_data.items():
+                all_mfr_data.extend(mfr_id.to_bytes(2, byteorder="little"))
+                all_mfr_data.extend(mfr_data)
+            data_dict[0xFF] = all_mfr_data
+
+        if uuids := advertisement_data.service_uuids:
+            uuids16 = bytearray()
+            uuids128 = bytearray()
+            for uuid in uuids:
+                bleio_uuid = UUID(uuid)
+                # If this is a Standard UUID in 128-bit form, convert it to a 16-bit UUID.
+                if bleio_uuid.is_standard_uuid:
+                    uuids16.extend(bleio_uuid.uuid128[12:14])
+                else:
+                    uuids128.extend(bleio_uuid.uuid128)
 
             if uuids16:
                 # Complete list of 16-bit UUIDs.
@@ -175,9 +180,10 @@ class ScanEntry:
                 # Complete list of 128-bit UUIDs
                 data_dict[0x07] = uuids128
 
-        if not ScanEntry._RE_IGNORABLE_NAME.fullmatch(device.name):
+        name = advertisement_data.local_name or device.name
+        if name and not ScanEntry._RE_IGNORABLE_NAME.fullmatch(name):
             # Complete name
-            data_dict[0x09] = device.name.encode("utf-8")
+            data_dict[0x09] = name.encode("utf-8")
 
         return data_dict
 

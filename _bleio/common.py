@@ -24,6 +24,7 @@ from bleak.backends.characteristic import (  # type: ignore[import]
     GattCharacteristicsFlags,
 )
 from bleak.backends.device import BLEDevice  # type: ignore[import]
+from bleak.backends.scanner import AdvertisementData  # type: ignore[import]
 from bleak.backends.service import BleakGATTService  # type: ignore[import]
 
 
@@ -248,16 +249,14 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         while self._scanning_in_progress and (
             timeout is None or time.time() - start < timeout
         ):
-            for device in self.await_bleak(
+            for (device, advertisement_data) in self.await_bleak(
                 self._scan_for_interval(self._SCAN_INTERVAL)
             ):
-                if not device or (
-                    device.rssi is not None and device.rssi < minimum_rssi
-                ):
+                if advertisement_data.rssi < minimum_rssi:
                     continue
                 self._cache_device(device)
                 scan_entry = ScanEntry._from_bleak(  # pylint: disable=protected-access
-                    device
+                    device, advertisement_data
                 )
                 if not scan_entry.matches(prefixes, match_all=False):
                     continue
@@ -355,8 +354,10 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
             returncode = self._hcidump.poll()
         self.stop_scan()
 
-    async def _scan_for_interval(self, interval: float) -> Iterable[ScanEntry]:
-        """Scan advertisements for the given interval and return ScanEntry objects
+    async def _scan_for_interval(
+        self, interval: float
+    ) -> Tuple[BLEDevice, AdvertisementData]:
+        """Scan advertisements for the given interval and tuples (device, advertisement_data)
         for all advertisements heard.
         """
         if not self._scanner:
@@ -365,7 +366,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         await self._scanner.start()
         await asyncio.sleep(interval)
         await self._scanner.stop()
-        return await self._scanner.get_discovered_devices()
+        return self._scanner.discovered_devices_and_advertisement_data.values()
 
     def stop_scan(self) -> None:
         """Stop scanning before timeout may have occurred."""
@@ -746,7 +747,7 @@ class Connection:
         """
 
         # Fetch the services.
-        bleak_services = await self.__bleak_client.get_services()
+        bleak_services = self.__bleak_client.services
 
         # pylint: disable=protected-access
         if service_uuids_whitelist:
