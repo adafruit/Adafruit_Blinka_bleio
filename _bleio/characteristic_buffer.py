@@ -72,9 +72,10 @@ class CharacteristicBuffer:
         buffer = bytearray(
             min(nbytes, self._buffer_size) if nbytes else self._buffer_size
         )
-        if self.readinto(buffer) == 0:
+        bytes_read = self.readinto(buffer)
+        if bytes_read == 0:
             return None
-        return buffer
+        return buffer[:bytes_read]
 
     def readinto(self, buf: Buf) -> Union[int, None]:
         """Read bytes into the ``buf``. Read at most ``len(buf)`` bytes.
