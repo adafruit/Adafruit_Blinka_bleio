@@ -164,18 +164,27 @@ class ScanEntry:
 
         if uuids := advertisement_data.service_uuids:
             uuids16 = bytearray()
+            uuids32 = bytearray()
             uuids128 = bytearray()
             for uuid in uuids:
                 bleio_uuid = UUID(uuid)
-                # If this is a Standard UUID in 128-bit form, convert it to a 16-bit UUID.
+                # If this is a Standard UUID in 128-bit form, convert it to a 16- or 32-bit UUID.
                 if bleio_uuid.is_standard_uuid:
-                    uuids16.extend(bleio_uuid.uuid128[12:14])
+                    if bleio_uuid.size == 16:
+                        uuids16.extend(bleio_uuid.uuid128[12:14])
+                    elif bleio_uuid.size == 32:
+                        uuids32.extend(bleio_uuid.uuid128[12:16])
+                    else:
+                        raise RuntimeError("Unexpected UUID size")
                 else:
                     uuids128.extend(bleio_uuid.uuid128)
 
             if uuids16:
                 # Complete list of 16-bit UUIDs.
                 data_dict[0x03] = uuids16
+            if uuids32:
+                # Complete list of 32-bit UUIDs.
+                data_dict[0x05] = uuids32
             if uuids128:
                 # Complete list of 128-bit UUIDs
                 data_dict[0x07] = uuids128
