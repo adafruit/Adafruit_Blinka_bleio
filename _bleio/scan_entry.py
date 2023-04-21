@@ -149,45 +149,55 @@ class ScanEntry:
         )
 
     @staticmethod
+    def _manufacturer_data_from_bleak(manufacturer_data: Dict[int, bytes]) -> bytes:
+        # The manufacturer data value is a dictionary.
+        # Re-concatenate it into bytes
+        all_mfr_data = bytearray()
+        for mfr_id, mfr_data in manufacturer_data.items():
+            all_mfr_data.extend(mfr_id.to_bytes(2, byteorder="little"))
+            all_mfr_data.extend(mfr_data)
+        return bytes(all_mfr_data)
+
+    @staticmethod
+    def _uuids_from_bleak(uuids: List[str]) -> bytes:
+        uuids16 = bytearray()
+        uuids32 = bytearray()
+        uuids128 = bytearray()
+        for uuid in uuids:
+            bleio_uuid = UUID(uuid)
+            # If this is a Standard UUID in 128-bit form, convert it to a 16- or 32-bit UUID.
+            if bleio_uuid.is_standard_uuid:
+                if bleio_uuid.size == 16:
+                    uuids16.extend(bleio_uuid.uuid128[12:14])
+                elif bleio_uuid.size == 32:
+                    uuids32.extend(bleio_uuid.uuid128[12:16])
+                else:
+                    raise RuntimeError("Unexpected UUID size")
+            else:
+                uuids128.extend(bleio_uuid.uuid128)
+
+        fields = {}
+        if uuids16:
+            # Complete list of 16-bit UUIDs.
+            fields[0x03] = uuids16
+        if uuids32:
+            # Complete list of 32-bit UUIDs.
+            fields[0x05] = uuids32
+        if uuids128:
+            # Complete list of 128-bit UUIDs
+            fields[0x07] = uuids128
+        return fields
+
+    @staticmethod
     def _data_dict_from_bleak(
         device: BLEDevice, advertisement_data: AdvertisementData
     ) -> DataDict:
         data_dict = {}
         if manufacturer_data := advertisement_data.manufacturer_data:
-            # The manufacturer data value is a dictionary.
-            # Re-concatenate it into bytes
-            all_mfr_data = bytearray()
-            for mfr_id, mfr_data in manufacturer_data.items():
-                all_mfr_data.extend(mfr_id.to_bytes(2, byteorder="little"))
-                all_mfr_data.extend(mfr_data)
-            data_dict[0xFF] = all_mfr_data
+            data_dict[0xFF] = ScanEntry._manufacturer_data_from_bleak(manufacturer_data)
 
         if uuids := advertisement_data.service_uuids:
-            uuids16 = bytearray()
-            uuids32 = bytearray()
-            uuids128 = bytearray()
-            for uuid in uuids:
-                bleio_uuid = UUID(uuid)
-                # If this is a Standard UUID in 128-bit form, convert it to a 16- or 32-bit UUID.
-                if bleio_uuid.is_standard_uuid:
-                    if bleio_uuid.size == 16:
-                        uuids16.extend(bleio_uuid.uuid128[12:14])
-                    elif bleio_uuid.size == 32:
-                        uuids32.extend(bleio_uuid.uuid128[12:16])
-                    else:
-                        raise RuntimeError("Unexpected UUID size")
-                else:
-                    uuids128.extend(bleio_uuid.uuid128)
-
-            if uuids16:
-                # Complete list of 16-bit UUIDs.
-                data_dict[0x03] = uuids16
-            if uuids32:
-                # Complete list of 32-bit UUIDs.
-                data_dict[0x05] = uuids32
-            if uuids128:
-                # Complete list of 128-bit UUIDs
-                data_dict[0x07] = uuids128
+            data_dict.update(ScanEntry._uuids_from_bleak(uuids))
 
         name = advertisement_data.local_name or device.name
         if name and not ScanEntry._RE_IGNORABLE_NAME.fullmatch(name):
