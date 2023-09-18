@@ -38,7 +38,6 @@ class Descriptor:
         fixed_length: bool = False,
         initial_value: Buf = b"",
     ):
-
         """There is no regular constructor for a Descriptor. A new local Descriptor can be created
         and attached to a Characteristic by calling `add_to_characteristic()`.
         Remote Descriptor objects are created by `_bleio.Connection.discover_remote_services`
@@ -65,7 +64,6 @@ class Descriptor:
         fixed_length: bool = False,
         initial_value: Buf = b"",
     ):
-
         """Create a new Descriptor object, and add it to this Service.
 
         :param Characteristic characteristic:

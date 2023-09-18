@@ -249,7 +249,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         while self._scanning_in_progress and (
             timeout is None or time.time() - start < timeout
         ):
-            for (device, advertisement_data) in self.await_bleak(
+            for device, advertisement_data in self.await_bleak(
                 self._scan_for_interval(self._SCAN_INTERVAL)
             ):
                 if advertisement_data.rssi < minimum_rssi:
