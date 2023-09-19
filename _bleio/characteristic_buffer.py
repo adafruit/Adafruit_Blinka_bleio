@@ -31,7 +31,6 @@ class CharacteristicBuffer:
         timeout: float = 1,
         buffer_size: int = 64,
     ):
-
         """Monitor the given Characteristic. Each time a new value is written to the Characteristic
         add the newly-written bytes to a FIFO buffer.
 
