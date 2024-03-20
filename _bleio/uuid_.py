@@ -87,7 +87,7 @@ class UUID:
             raise ValueError("UUID integer value must be unsigned 16- or 32-bit")
         if uuid <= 2**16:
             size = 16
-        if uuid <= 2**32:
+        elif uuid <= 2**32:
             size = 32
         uuid128 = UUID.standard_uuid128_from_uuid32(uuid)
         return uuid128, size
