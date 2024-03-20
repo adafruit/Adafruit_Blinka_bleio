@@ -236,13 +236,12 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         self._clear_device_cache()
 
         if self._use_hcitool:
-            for scan_entry in self._start_scan_hcitool(
+            yield from self._start_scan_hcitool(
                 prefixes,
                 timeout=timeout,
                 minimum_rssi=minimum_rssi,
                 active=active,
-            ):
-                yield scan_entry
+            )
             return
 
         self._scanning_in_progress = True
