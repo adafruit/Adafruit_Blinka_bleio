@@ -180,6 +180,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
     def name(self, value: str) -> None:
         self._name = value
 
+    # pylint: disable=too-many-arguments
     def start_advertising(
         self,
         data: Buf,
@@ -196,6 +197,7 @@ class Adapter:  # pylint: disable=too-many-instance-attributes
         """Stop sending advertising packets."""
         raise NotImplementedError("Advertising not implemented")
 
+    # pylint: disable=too-many-arguments
     def start_scan(
         self,
         prefixes: Buf = b"",
@@ -459,6 +461,7 @@ class Characteristic:
     WRITE_NO_RESPONSE = 0x20
     """property: clients may write this characteristic; no response will be sent back"""
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,

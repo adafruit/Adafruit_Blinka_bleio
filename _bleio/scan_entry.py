@@ -36,6 +36,7 @@ class ScanEntry:
         re.IGNORECASE,
     )
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,

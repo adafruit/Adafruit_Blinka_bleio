@@ -28,6 +28,7 @@ class Descriptor:
     Descriptors are attached to BLE characteristics and provide contextual
     information about the characteristic."""
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         *,
@@ -52,6 +53,7 @@ class Descriptor:
         self._characteristic = None
         self._bleak_gatt_descriptor = None
 
+    # pylint: disable=too-many-arguments
     @classmethod
     def add_to_characteristic(
         cls,
