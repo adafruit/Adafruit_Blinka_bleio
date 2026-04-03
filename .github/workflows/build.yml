@@ -23,7 +23,7 @@ jobs:
         tr '_' '-'
         )" >> $GITHUB_OUTPUT
     - name: Set up Python 3.x
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.x"
     - name: Versions
@@ -34,7 +34,7 @@ jobs:
       with:
         submodules: true
     - name: Checkout tools repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         repository: adafruit/actions-ci-circuitpython-libs
         path: actions-ci
