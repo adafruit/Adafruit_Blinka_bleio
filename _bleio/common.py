@@ -594,7 +594,7 @@ class Characteristic:
             self.service.connection._bleak_client.write_gatt_char(
                 self.uuid._bleak_uuid,
                 bytearray(val),
-                response=self.properties & Characteristic.WRITE,
+                response=self.properties & GattCharacteristicsFlags["write"].value,
             )
         )
 
